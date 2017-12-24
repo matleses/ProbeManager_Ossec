@@ -1,0 +1,26 @@
+<br/>
+<h2>
+{% load static %}
+    &nbsp;<img src="{% static 'ossec/images/ossec-logo.png' %}" alt="Ossec logo">
+</h2>
+<button type="button" class="btn btn-secondary" onclick="window.location.href='/admin/ossec/ossec/add/'">Add new instance
+</button>
+
+<br/><br/>
+{% if instances.ossec %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="center-block">
+            <div class="list-group">
+                {% load status %}
+                {% for instance in instances.ossec %}
+                <a class="list-group-item list-group-item-{{ instance.id|status }} list-group-item-action"
+                   href="{% url 'ossec:probe_index' instance.id %}">{{ instance }} - {{ instance.host }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+<br/>
