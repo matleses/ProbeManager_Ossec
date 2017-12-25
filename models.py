@@ -22,7 +22,7 @@ class ConfOssec(ProbeConfiguration):
     conf_rules_file = models.CharField(max_length=400, default="/var/ossec/etc/local_rules.xml")
     conf_decoders_file = models.CharField(max_length=400, default='/var/ossec/etc/local_decoder.xml')
     conf_file = models.CharField(max_length=400, default="/var/ossec/etc/ossec.conf")
-    conf_advanced_text = models.TextField(default=CONF_FULL_DEFAULT)
+    conf_file_text = models.TextField(default=CONF_FULL_DEFAULT)
 
     def __str__(self):
         return self.name
@@ -317,7 +317,7 @@ class Ossec(Probe):
         tmpdir = settings.BASE_DIR + "/tmp/" + self.name + "/"
         if not os.path.exists(tmpdir):
             os.makedirs(tmpdir)
-        value = self.configuration.conf_advanced_text
+        value = self.configuration.conf_file_text
         f = open(tmpdir + "temp.conf", 'w')
         f.write(value)
         f.close()
