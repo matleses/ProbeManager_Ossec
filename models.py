@@ -18,6 +18,7 @@ class ConfOssec(ProbeConfiguration):
         CONF_FULL_DEFAULT = f.read()
     with open(settings.BASE_DIR + "/ossec/preloaded-vars.conf") as f:
         CONF_INSTALL = f.read()
+    conf_binary_dir = models.CharField(max_length=400, default="/var/ossec/bin")
     conf_install_text = models.TextField(default=CONF_INSTALL)
     conf_install_file = models.CharField(max_length=400, default="/var/ossec/etc/preloaded-vars.conf")
     conf_rules_file = models.CharField(max_length=400, default="/var/ossec/etc/local_rules.xml")
@@ -143,7 +144,7 @@ class Ossec(Probe):
 
     def test(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-logtest"
+            command = self.configuration.conf_binary_dir + "/ossec-logtest"
         else:
             raise Exception("Not yet implemented")
         tasks = {"test": command}
@@ -208,7 +209,7 @@ class Ossec(Probe):
 
     def restart(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-control restart"
+            command = self.configuration.conf_binary_dir + "/ossec-control restart"
         else:
             raise Exception("Not yet implemented")
         tasks = {"restart": command}
@@ -222,7 +223,7 @@ class Ossec(Probe):
 
     def start(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-control start"
+            command = self.configuration.conf_binary_dir + "/ossec-control start"
         else:
             raise Exception("Not yet implemented")
         tasks = {"start": command}
@@ -236,7 +237,7 @@ class Ossec(Probe):
 
     def stop(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-control stop"
+            command = self.configuration.conf_binary_dir + "/ossec-control stop"
         else:
             raise Exception("Not yet implemented")
         tasks = {"stop": command}
@@ -250,7 +251,7 @@ class Ossec(Probe):
 
     def reload(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-control reload"
+            command = self.configuration.conf_binary_dir + "/ossec-control reload"
         else:
             raise Exception("Not yet implemented")
         tasks = {"reload": command}
@@ -264,7 +265,7 @@ class Ossec(Probe):
 
     def status(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-control status"
+            command = self.configuration.conf_binary_dir + "/ossec-control status"
         else:
             raise Exception("Not yet implemented")
         tasks = {"status": command}
