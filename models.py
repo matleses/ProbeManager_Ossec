@@ -18,7 +18,8 @@ class ConfOssec(ProbeConfiguration):
         CONF_FULL_DEFAULT = f.read()
     with open(settings.BASE_DIR + "/ossec/preloaded-vars.conf") as f:
         CONF_INSTALL = f.read()
-    conf_install = models.TextField(default=CONF_INSTALL)
+    conf_install_text = models.TextField(default=CONF_INSTALL)
+    conf_install_file = models.CharField(max_length=400, default="/var/ossec/etc/preloaded-vars.conf")
     conf_rules_file = models.CharField(max_length=400, default="/var/ossec/etc/local_rules.xml")
     conf_decoders_file = models.CharField(max_length=400, default='/var/ossec/etc/local_decoder.xml')
     conf_file = models.CharField(max_length=400, default="/var/ossec/etc/ossec.conf")
@@ -155,6 +156,12 @@ class Ossec(Probe):
         return True
 
     def install(self, server=True):
+        tmpdir = settings.BASE_DIR + "/tmp/" + self.name + "/"
+        if not os.path.exists(tmpdir):
+            os.makedirs(tmpdir)
+        f = open(tmpdir + "temp.install", 'w')
+        f.write(self.configuration.conf_install)
+        f.close()
         if self.server.os.name == 'debian':
             command1 = 'wget -q -O - https://www.atomicorp.com/RPM-GPG-KEY.atomicorp.txt  | sudo apt-key add -'
             command2 = 'echo "deb https://updates.atomicorp.com/channels/atomic/debian stretch main" >>  /etc/apt/sources.list.d/atomic.list'
@@ -168,11 +175,16 @@ class Ossec(Probe):
         else:
             tasks = {"add_key": command1, "add_repo": command2, "update_repo": command3, "install": command5}
         try:
+            response_install_conf = execute_copy(self.server,
+                                                 src=tmpdir + "temp.install",
+                                                 dest=self.configuration.conf_install_file,
+                                                 become=True
+                                                 )
             response = execute(self.server, tasks, become=True)
         except Exception as e:
             logger.error(e)
             return False
-        logger.debug("output : " + str(response))
+        logger.debug("output : " + str(response) + " - " + str(response_install_conf))
         return True
 
     def update(self, server=True):
