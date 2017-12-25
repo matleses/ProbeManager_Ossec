@@ -1,5 +1,5 @@
 from django.conf.urls import url
-from home.views import probe_index, start, stop, restart, reload, status, install, update, deploy_conf, get_progress
+from home.views import probe_index, start, stop, restart, reload, status, install, update, deploy_conf
 from ossec.views import deploy_rules
 
 
@@ -16,5 +16,4 @@ urlpatterns = [
     url(r'^update/(?P<id>\d+)$', update, name='update'),
     url(r'^deploy-conf/(?P<id>\d+)$', deploy_conf, name='deploy-conf'),
     url(r'^deploy-rules/(?P<id>\d+)$', deploy_rules, name='deploy-rules'),
-    url(r'^get-progress/$', get_progress, name='get-progress'),
 ]
