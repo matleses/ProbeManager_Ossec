@@ -135,7 +135,7 @@ class Ossec(Probe):
     """
     rulesets = models.ManyToManyField(RuleSetOssec, blank=True)
     configuration = models.ForeignKey(ConfOssec)
-    agent = models.BooleanField(default=False)
+    agent = models.BooleanField(default=True)
 
     def __init__(self, *args, **kwargs):
         super(Probe, self).__init__(*args, **kwargs)
