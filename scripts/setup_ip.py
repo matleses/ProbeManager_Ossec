@@ -21,4 +21,8 @@ def run(*args):
     with open(settings.BASE_DIR + "/ossec/preloaded-vars-agent.conf", 'w') as f:
         f.write(final_conf_install)
 
+    # Set IP in settings
+    with open(settings.BASE_DIR + "/ossec/settings.py", 'a') as f:
+        f.write("OSSEC_SERVER_IP = '" + ip + "'")
+
     sys.exit(0)

@@ -371,8 +371,8 @@ class OssecAgent(Ossec):
 
     def test(self):
         if self.server.os.name == 'debian':
-            command1 = self.configuration.conf_binary_dir + "/ossec-monitord -t"
-            command2 = self.configuration.conf_binary_dir + "/ossec-agentd -t"
+            command1 = settings.OSSEC_BINARY + "/ossec-monitord -t"
+            command2 = settings.OSSEC_BINARY + "/ossec-agentd -t"
 
         else:
             raise Exception("Not yet implemented")
@@ -394,9 +394,10 @@ class OssecAgent(Ossec):
             command4 = "(cd ossec-hids-" + version + "/ && sudo ./install.sh)"
             command5 = "rm " + version + ".tar.gz && rm -rf ossec-hids-" + version
             command6 = "sudo cp probemanager/ossec/ossec-conf-agent.xml /var/ossec/etc/ossec.conf"
+            command7 = settings.OSSEC_BINARY + "/agent-auth -m " + settings.OSSEC_SERVER_IP
         else:
             raise Exception("Not yet implemented")
-        tasks = {"wget": command1, "tar": command2, "cp install conf": command3, "install": command4, "clean": command5, "cp conf": command6}
+        tasks = {"wget": command1, "tar": command2, "cp install conf": command3, "install": command4, "clean": command5, "cp conf": command6, "record to server": command7}
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
@@ -418,7 +419,7 @@ class Util(models.Model):
         ("addsite", "addsite"),
         ("adddns", "adddns"),
     )
-    ossec = models.ForeignKey(Ossec)
+    ossec = models.ForeignKey(OssecAgent)
     argument = models.CharField(max_length=255, choices=TYPE_ARGUMENTS)
     option = models.CharField(max_length=400)
 
