@@ -130,7 +130,16 @@
   <alerts>
     <log_alert_level>1</log_alert_level>
   </alerts>
-  <!-- Files to monitor (localfiles) -->
+
+  <!-- Files to monitor (localfiles) OSX
+
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/system.log</location>
+  </localfile>
+
+  -->
+  <!-- Files to monitor (localfiles) Debian
 
   <localfile>
     <log_format>syslog</log_format>
@@ -158,6 +167,16 @@
   </localfile>
 
   <localfile>
+    <log_format>apache</log_format>
+    <location>/var/log/apache2/error.log</location>
+  </localfile>
+
+  <localfile>
+    <log_format>apache</log_format>
+    <location>/var/log/apache2/access.log</location>
+  </localfile>
+
+  <localfile>
     <log_format>command</log_format>
     <command>df -P</command>
   </localfile>
@@ -171,4 +190,7 @@
     <log_format>full_command</log_format>
     <command>last -n 5</command>
   </localfile>
+
+  -->
+
 </ossec_config>

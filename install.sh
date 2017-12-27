@@ -16,9 +16,28 @@ else
     echo 'Bad argument'
     exit 1
 fi
+destfull="$dest"/ProbeManager/
 
+echo '## Set IP server ##'
+if [ $arg == 'prod' ]; then
+    "$destfull"venv/bin/python "$destfull"probemanager/manage.py runscript setup_ip --settings=probemanager.settings.$arg --script-args $destfull
+else
+    venv/bin/python probemanager/manage.py runscript setup_ip --settings=probemanager.settings.$arg --script-args $destfull
+fi
 
-config=""
+install(){
+    if ! [ -d /var/ossec ]; then
+        wget https://github.com/ossec/ossec-hids/archive/2.9.3.tar.gz
+        tar xf 2.9.3.tar.gz
+        cp probemanager/ossec/preloaded-vars-server.conf ossec-hids-2.9.3/etc/preloaded-vars.conf
+        chmod +x ossec-hids-2.9.3/etc/preloaded-vars.conf
+        (cd ossec-hids-2.9.3/ && sudo ./install.sh)
+        rm 2.9.3.tar.gz
+        rm -rf ossec-hids-2.9.3
+        sudo cp probemanager/ossec/ossec-conf-server.xml /var/ossec/etc/ossec.conf
+    fi
+}
+
 # OSX with source
 if [[ $OSTYPE == *"darwin"* ]]; then
     if brew --version | grep -qw Homebrew ; then
@@ -32,22 +51,16 @@ if [[ $OSTYPE == *"darwin"* ]]; then
             brew install lynx
         fi
     fi
+    install
 fi
 # Debian
 if [ -f /etc/debian_version ]; then
     sudo apt update
     sudo apt install build-essential
     sudo apt install lynx
+    install
 fi
-if ! [ -d /var/ossec ]; then
-    wget https://github.com/ossec/ossec-hids/archive/2.9.3.tar.gz
-    tar xf 2.9.3.tar.gz
-    cp probemanager/ossec/preloaded-vars-server.conf ossec-hids-2.9.3/etc/preloaded-vars.conf
-    chmod +x ossec-hids-2.9.3/etc/preloaded-vars.conf
-    (cd ossec-hids-2.9.3/ && sudo ./install.sh)
-    rm 2.9.3.tar.gz
-    rm -rf ossec-hids-2.9.3
-fi
+
 config="/var/ossec/etc/ossec.conf"
 if [ $arg == 'prod' ]; then
     echo "OSSEC_BINARY = '/var/ossec/bin'" > "$dest"probemanager/ossec/settings.py

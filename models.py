@@ -14,12 +14,9 @@ logger = logging.getLogger('ossec')
 
 
 class ConfOssec(ProbeConfiguration):
-    with open(settings.BASE_DIR + "/ossec/default-Ossec-conf.xml") as f:
+    with open(settings.BASE_DIR + "/ossec/ossec-conf-client.xml") as f:
         CONF_FULL_DEFAULT = f.read()
-    with open(settings.BASE_DIR + "/ossec/preloaded-vars.conf") as f:
-        CONF_INSTALL = f.read()
     conf_binary_dir = models.CharField(max_length=400, default="/var/ossec/bin")
-    conf_install_text = models.TextField(default=CONF_INSTALL)
     conf_install_file = models.CharField(max_length=400, default="/var/ossec/etc/preloaded-vars.conf")
     conf_rules_file = models.CharField(max_length=400, default="/var/ossec/etc/local_rules.xml")
     conf_decoders_file = models.CharField(max_length=400, default='/var/ossec/etc/local_decoder.xml')
@@ -62,7 +59,7 @@ class RuleOssec(Rule):
 
     def test(self):
         if self.server.os.name == 'debian':
-            command = self.configuration.conf_binary_dir + "/ossec-logtest"
+            command = settings.OSSEC_BINARY + "/ossec-logtest"
         else:
             raise Exception("Not yet implemented")
         tasks = {"test": command}
