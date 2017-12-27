@@ -1,5 +1,5 @@
 from django.contrib import admin
-from ossec.models import Ossec, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssec, Util
+from ossec.models import Ossec, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent, ConfOssecServer, Util
 import logging
 
 
@@ -17,5 +17,6 @@ admin.site.register(Ossec)
 admin.site.register(RuleSetOssec)
 admin.site.register(RuleOssec)
 admin.site.register(DecoderOssec)
-admin.site.register(ConfOssec)
+admin.site.register(ConfOssecAgent)
+admin.site.register(ConfOssecServer)
 admin.site.register(Util, UtilAdmin)

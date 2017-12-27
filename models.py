@@ -13,14 +13,34 @@ from django.db.models import Q
 logger = logging.getLogger('ossec')
 
 
-class ConfOssec(ProbeConfiguration):
-    with open(settings.BASE_DIR + "/ossec/ossec-conf-client.xml") as f:
+class ConfOssecAgent(ProbeConfiguration):
+    with open(settings.BASE_DIR + "/ossec/ossec-conf-agent.xml") as f:
         CONF_FULL_DEFAULT = f.read()
-    conf_binary_dir = models.CharField(max_length=400, default="/var/ossec/bin")
-    conf_install_file = models.CharField(max_length=400, default="/var/ossec/etc/preloaded-vars.conf")
+    conf_file_text = models.TextField(default=CONF_FULL_DEFAULT)
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    def get_all(cls):
+        return cls.objects.all()
+
+    @classmethod
+    def get_by_id(cls, id):
+        try:
+            object = cls.objects.get(id=id)
+        except cls.DoesNotExist as e:
+            logger.debug('Tries to access an object that does not exist : ' + str(e))
+            return None
+        return object
+
+
+class ConfOssecServer(ProbeConfiguration):
+    with open(settings.BASE_DIR + "/ossec/ossec-conf-server.xml") as f:
+        CONF_FULL_DEFAULT = f.read()
+    conf_install_file = models.CharField(max_length=400, default="/var/ossec/etc/preloaded-vars-server.conf")
     conf_rules_file = models.CharField(max_length=400, default="/var/ossec/etc/local_rules.xml")
     conf_decoders_file = models.CharField(max_length=400, default='/var/ossec/etc/local_decoder.xml')
-    conf_file = models.CharField(max_length=400, default="/var/ossec/etc/ossec.conf")
     conf_file_text = models.TextField(default=CONF_FULL_DEFAULT)
 
     def __str__(self):
@@ -42,7 +62,7 @@ class ConfOssec(ProbeConfiguration):
 
 class RuleOssec(Rule):
     def __str__(self):
-        return self.name + "  " + self.description
+        return self.id
 
     @classmethod
     def get_all(cls):
@@ -57,24 +77,10 @@ class RuleOssec(Rule):
             return None
         return object
 
-    def test(self):
-        if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-logtest"
-        else:
-            raise Exception("Not yet implemented")
-        tasks = {"test": command}
-        try:
-            response = execute(self.server, tasks, become=True)
-        except Exception as e:
-            logger.error(e.__str__())
-            return False
-        logger.debug("output : " + str(response))
-        return True
-
 
 class DecoderOssec(Rule):
     def __str__(self):
-        return self.name + "  " + self.description
+        return self.id
 
     @classmethod
     def get_all(cls):
@@ -97,14 +103,14 @@ class RuleSetOssec(RuleSet):
     rules = select2.fields.ManyToManyField(RuleOssec,
                                            blank=True,
                                            ajax=True,
-                                           search_field=lambda q: Q(sid__icontains=q) | Q(msg__icontains=q),
+                                           search_field=lambda q: Q(id__icontains=q) | Q(rule_full__icontains=q),
                                            sort_field='sid',
                                            js_options={'quiet_millis': 200}
                                            )
     decoders = select2.fields.ManyToManyField(DecoderOssec,
                                               blank=True,
                                               ajax=True,
-                                              search_field=lambda q: Q(sid__icontains=q) | Q(name__icontains=q),
+                                              search_field=lambda q: Q(id__icontains=q) | Q(rule_full__icontains=q),
                                               sort_field='sid',
                                               js_options={'quiet_millis': 200}
                                               )
@@ -128,11 +134,9 @@ class RuleSetOssec(RuleSet):
 
 class Ossec(Probe):
     """
-    Stores an instance of Ossec IDS software.
+    Stores an instance of Ossec agent IDS software.
     """
-    rulesets = models.ManyToManyField(RuleSetOssec, blank=True)
-    configuration = models.ForeignKey(ConfOssec)
-    agent = models.BooleanField(default=True)
+    configuration = models.ForeignKey(ConfOssecServer)
 
     def __init__(self, *args, **kwargs):
         super(Probe, self).__init__(*args, **kwargs)
@@ -154,98 +158,9 @@ class Ossec(Probe):
             return None
         return object
 
-    def test(self):
-        if self.server.os.name == 'debian':
-            command1 = self.configuration.conf_binary_dir + "/ossec-monitord -t"
-            command2 = self.configuration.conf_binary_dir + "/ossec-remoted -t"
-            command3 = self.configuration.conf_binary_dir + "/ossec-agentd -t"
-
-        else:
-            raise Exception("Not yet implemented")
-        if not self.agent:
-            tasks = {"test monitord": command1, "test remoted": command2}
-        else:
-            tasks = {"test monitord": command1, "test agentd": command3}
-        try:
-            response = execute(self.server, tasks, become=True)
-        except Exception as e:
-            logger.error(e.__str__())
-            return False
-        logger.debug("output : " + str(response))
-        return True
-
-    def list_agents(self):
-        if self.server.os.name == 'debian':
-            command = self.configuration.conf_binary_dir + "/list_agents -a"
-        else:
-            raise Exception("Not yet implemented")
-        if not self.agent:
-            tasks = {"list agents": command}
-        else:
-            raise Exception("Not possible for an agent")
-        try:
-            response = execute(self.server, tasks, become=True)
-        except Exception as e:
-            logger.error(e.__str__())
-            return False
-        logger.debug("output : " + str(response))
-        return response
-
-    def install(self):
-        tmpdir = settings.BASE_DIR + "/tmp/" + self.name + "/"
-        if not os.path.exists(tmpdir):
-            os.makedirs(tmpdir)
-        f = open(tmpdir + "temp.install", 'w')
-        f.write(self.configuration.conf_install)
-        f.close()
-        if self.server.os.name == 'debian':
-            command1 = 'wget -q -O - https://www.atomicorp.com/RPM-GPG-KEY.atomicorp.txt  | sudo apt-key add -'
-            command2 = 'echo "deb https://updates.atomicorp.com/channels/atomic/debian stretch main" >>  /etc/apt/sources.list.d/atomic.list'
-            command3 = "apt update"
-            command4 = "apt install ossec-hids-server"
-            command5 = "apt install ossec-hids-agent"
-            command6 = "apt install lynx"
-        else:
-            raise Exception("Not yet implemented")
-        if not self.agent:
-            tasks = {"add_key": command1, "add_repo": command2, "update_repo": command3, "install": command4, "install-lynx": command6}
-        else:
-            tasks = {"add_key": command1, "add_repo": command2, "update_repo": command3, "install": command5}
-        try:
-            response_install_conf = execute_copy(self.server,
-                                                 src=tmpdir + "temp.install",
-                                                 dest=self.configuration.conf_install_file,
-                                                 become=True
-                                                 )
-            response = execute(self.server, tasks, become=True)
-        except Exception as e:
-            logger.error(e)
-            return False
-        logger.debug("output : " + str(response) + " - " + str(response_install_conf))
-        return True
-
-    def update(self):
-        if self.server.os.name == 'debian':
-            command3 = "apt update"
-            command4 = "apt install ossec-hids-server"
-            command5 = "apt install ossec-hids-agent"
-        else:
-            raise Exception("Not yet implemented")
-        if not self.agent:
-            tasks = {"update_repo": command3, "install": command4}
-        else:
-            tasks = {"update_repo": command3, "install": command5}
-        try:
-            response = execute(self.server, tasks, become=True)
-        except Exception as e:
-            logger.error(e)
-            return False
-        logger.debug("output : " + str(response))
-        return True
-
     def restart(self):
         if self.server.os.name == 'debian':
-            command = self.configuration.conf_binary_dir + "/ossec-control restart"
+            command = settings.OSSEC_BINARY + "/ossec-control restart"
         else:
             raise Exception("Not yet implemented")
         tasks = {"restart": command}
@@ -259,7 +174,7 @@ class Ossec(Probe):
 
     def start(self):
         if self.server.os.name == 'debian':
-            command = self.configuration.conf_binary_dir + "/ossec-control start"
+            command = settings.OSSEC_BINARY + "/ossec-control start"
         else:
             raise Exception("Not yet implemented")
         tasks = {"start": command}
@@ -273,7 +188,7 @@ class Ossec(Probe):
 
     def stop(self):
         if self.server.os.name == 'debian':
-            command = self.configuration.conf_binary_dir + "/ossec-control stop"
+            command = settings.OSSEC_BINARY + "/ossec-control stop"
         else:
             raise Exception("Not yet implemented")
         tasks = {"stop": command}
@@ -287,7 +202,7 @@ class Ossec(Probe):
 
     def reload(self):
         if self.server.os.name == 'debian':
-            command = self.configuration.conf_binary_dir + "/ossec-control reload"
+            command = settings.OSSEC_BINARY + "/ossec-control reload"
         else:
             raise Exception("Not yet implemented")
         tasks = {"reload": command}
@@ -301,7 +216,7 @@ class Ossec(Probe):
 
     def status(self):
         if self.server.os.name == 'debian':
-            command = self.configuration.conf_binary_dir + "/ossec-control status"
+            command = settings.OSSEC_BINARY + "/ossec-control status"
         else:
             raise Exception("Not yet implemented")
         tasks = {"status": command}
@@ -312,6 +227,80 @@ class Ossec(Probe):
             return 'Failed to get status : ' + e.__str__()
         logger.debug("output : " + str(response))
         return response['status']
+
+    def deploy_conf(self):
+        tmpdir = settings.BASE_DIR + "/tmp/" + self.name + "/"
+        if not os.path.exists(tmpdir):
+            os.makedirs(tmpdir)
+        value = self.configuration.conf_file_text
+        f = open(tmpdir + "temp.conf", 'w')
+        f.write(value)
+        f.close()
+        deploy = True
+        try:
+            response = execute_copy(self.server,
+                                    src=os.path.abspath(tmpdir + 'temp.conf'),
+                                    dest=settings.OSSEC_CONFIG,
+                                    become=True
+                                    )
+            logger.debug("output : " + str(response))
+        except Exception as e:
+            logger.error(e)
+            deploy = False
+        if os.path.isfile(tmpdir + 'temp.conf'):
+            os.remove(tmpdir + "temp.conf")
+        return deploy
+
+
+class OssecServer(Ossec):
+    """
+    Stores an instance of Ossec server IDS software.
+    """
+    rulesets = models.ManyToManyField(RuleSetOssec, blank=True)
+
+    @classmethod
+    def get_all(cls):
+        return cls.objects.all()
+
+    @classmethod
+    def get_by_id(cls, id):
+        try:
+            object = cls.objects.get(id=id)
+        except cls.DoesNotExist as e:
+            logger.debug('Tries to access an object that does not exist : ' + str(e))
+            return None
+        return object
+
+    def test(self):
+        if self.server.os.name == 'debian':
+            command1 = settings.OSSEC_BINARY + "/ossec-monitord -t"
+            command2 = settings.OSSEC_BINARY + "/ossec-remoted -t"
+        else:
+            raise Exception("Not yet implemented")
+
+        tasks = {"test monitord": command1, "test remoted": command2}
+        try:
+            response = execute(self.server, tasks, become=True)
+        except Exception as e:
+            logger.error(e.__str__())
+            return False
+        logger.debug("output : " + str(response))
+        return True
+
+    def list_agents(self):
+        if self.server.os.name == 'debian':
+            command = settings.OSSEC_BINARY + "/list_agents -a"
+        else:
+            raise Exception("Not yet implemented")
+
+        tasks = {"list agents": command}
+        try:
+            response = execute(self.server, tasks, become=True)
+        except Exception as e:
+            logger.error(e.__str__())
+            return False
+        logger.debug("output : " + str(response))
+        return response
 
     def deploy_rules(self):
         deploy = True
@@ -362,28 +351,62 @@ class Ossec(Probe):
             self.save()
         return deploy
 
-    def deploy_conf(self):
-        tmpdir = settings.BASE_DIR + "/tmp/" + self.name + "/"
-        if not os.path.exists(tmpdir):
-            os.makedirs(tmpdir)
-        value = self.configuration.conf_file_text
-        f = open(tmpdir + "temp.conf", 'w')
-        f.write(value)
-        f.close()
-        deploy = True
+
+class OssecAgent(Ossec):
+    """
+    Stores an instance of Ossec agent IDS software.
+    """
+    @classmethod
+    def get_all(cls):
+        return cls.objects.all()
+
+    @classmethod
+    def get_by_id(cls, id):
         try:
-            response = execute_copy(self.server,
-                                    src=os.path.abspath(tmpdir + 'temp.conf'),
-                                    dest=self.configuration.conf_file,
-                                    become=True
-                                    )
-            logger.debug("output : " + str(response))
+            object = cls.objects.get(id=id)
+        except cls.DoesNotExist as e:
+            logger.debug('Tries to access an object that does not exist : ' + str(e))
+            return None
+        return object
+
+    def test(self):
+        if self.server.os.name == 'debian':
+            command1 = self.configuration.conf_binary_dir + "/ossec-monitord -t"
+            command2 = self.configuration.conf_binary_dir + "/ossec-agentd -t"
+
+        else:
+            raise Exception("Not yet implemented")
+        tasks = {"test monitord": command1, "test remoted": command2}
+        try:
+            response = execute(self.server, tasks, become=True)
+        except Exception as e:
+            logger.error(e.__str__())
+            return False
+        logger.debug("output : " + str(response))
+        return True
+
+    def install(self):
+        version = settings.OSSEC_VERSION
+        if self.server.os.name == 'debian':
+            command1 = "wget https://github.com/ossec/ossec-hids/archive/" + version + ".tar.gz"
+            command2 = "tar xf " + version + ".tar.gz"
+            command3 = "cp probemanager/ossec/preloaded-vars-agent.conf ossec-hids-" + version + "/etc/preloaded-vars.conf && chmod +x ossec-hids-" + version + "/etc/preloaded-vars.conf"
+            command4 = "(cd ossec-hids-" + version + "/ && sudo ./install.sh)"
+            command5 = "rm " + version + ".tar.gz && rm -rf ossec-hids-" + version
+            command6 = "sudo cp probemanager/ossec/ossec-conf-agent.xml /var/ossec/etc/ossec.conf"
+        else:
+            raise Exception("Not yet implemented")
+        tasks = {"wget": command1, "tar": command2, "cp install conf": command3, "install": command4, "clean": command5, "cp conf": command6}
+        try:
+            response = execute(self.server, tasks, become=True)
         except Exception as e:
             logger.error(e)
-            deploy = False
-        if os.path.isfile(tmpdir + 'temp.conf'):
-            os.remove(tmpdir + "temp.conf")
-        return deploy
+            return False
+        logger.debug("output : " + str(response))
+        return True
+
+    def update(self):
+        return self.install()
 
 
 class Util(models.Model):

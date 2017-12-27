@@ -25,15 +25,16 @@ else
     venv/bin/python probemanager/manage.py runscript setup_ip --settings=probemanager.settings.$arg --script-args $destfull
 fi
 
+VERSION="2.9.3"
+
 install(){
     if ! [ -d /var/ossec ]; then
-        wget https://github.com/ossec/ossec-hids/archive/2.9.3.tar.gz
-        tar xf 2.9.3.tar.gz
-        cp probemanager/ossec/preloaded-vars-server.conf ossec-hids-2.9.3/etc/preloaded-vars.conf
-        chmod +x ossec-hids-2.9.3/etc/preloaded-vars.conf
-        (cd ossec-hids-2.9.3/ && sudo ./install.sh)
-        rm 2.9.3.tar.gz
-        rm -rf ossec-hids-2.9.3
+        wget https://github.com/ossec/ossec-hids/archive/"$VERSION".tar.gz
+        tar xf "$VERSION".tar.gz
+        cp probemanager/ossec/preloaded-vars-server.conf ossec-hids-"$VERSION"/etc/preloaded-vars.conf
+        chmod +x ossec-hids-"$VERSION"/etc/preloaded-vars.conf
+        (cd ossec-hids-"$VERSION"/ && sudo ./install.sh)
+        rm "$VERSION".tar.gz && rm -rf ossec-hids-"$VERSION"
         sudo cp probemanager/ossec/ossec-conf-server.xml /var/ossec/etc/ossec.conf
     fi
 }
@@ -61,13 +62,14 @@ if [ -f /etc/debian_version ]; then
     install
 fi
 
-config="/var/ossec/etc/ossec.conf"
 if [ $arg == 'prod' ]; then
     echo "OSSEC_BINARY = '/var/ossec/bin'" > "$dest"probemanager/ossec/settings.py
-    echo "OSSEC_CONFIG = '$config'" >> "$dest"probemanager/ossec/settings.py
+    echo "OSSEC_CONFIG = '/var/ossec/etc/ossec.conf'" >> "$dest"probemanager/ossec/settings.py
+    echo "OSSEC_VERSION = '$VERSION'" >> "$dest"probemanager/ossec/settings.py
 else
     echo "OSSEC_BINARY = '/var/ossec/bin'" > probemanager/ossec/settings.py
-    echo "OSSEC_CONFIG = '$config'" >> probemanager/ossec/settings.py
+    echo "OSSEC_CONFIG = '/var/ossec/etc/ossec.conf'" >> probemanager/ossec/settings.py
+    echo "OSSEC_VERSION = '$VERSION'" >> probemanager/ossec/settings.py
 fi
 
 
