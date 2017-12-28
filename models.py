@@ -8,6 +8,7 @@ import select2.fields
 from django.conf import settings
 from django.utils import timezone
 from django.db.models import Q
+from jinja2 import Template
 
 
 logger = logging.getLogger('ossec')
@@ -39,7 +40,7 @@ class ConfOssecServer(ProbeConfiguration):
     with open(settings.BASE_DIR + "/ossec/ossec-conf-server.xml") as f:
         CONF_FULL_DEFAULT = f.read()
     conf_install_file = models.CharField(max_length=400, default="/var/ossec/etc/preloaded-vars-server.conf")
-    conf_rules_file = models.CharField(max_length=400, default="/var/ossec/etc/local_rules.xml")
+    conf_rules_file = models.CharField(max_length=400, default="/var/ossec/rules/local_rules.xml")
     conf_decoders_file = models.CharField(max_length=400, default='/var/ossec/etc/local_decoder.xml')
     conf_file_text = models.TextField(default=CONF_FULL_DEFAULT)
 
@@ -410,17 +411,44 @@ class OssecAgent(Ossec):
         return self.install()
 
 
+def increment_sid():
+    last_sid = Util.objects.all().order_by('id').last()
+    if not last_sid:
+        return 50000000
+    else:
+        return last_sid.sid + 1
+
+
 class Util(models.Model):
     """
-    Execute a command from util.sh of Ossec IDS software.
+    Execute a command like util.sh of Ossec IDS software.
     """
     TYPE_ARGUMENTS = (
         ("addfile", "addfile"),
         ("addsite", "addsite"),
         ("adddns", "adddns"),
     )
+    LOG_FORMAT = (
+        ("syslog", "syslog"),
+        ("snort-full", "snort-full"),
+        ("snort-fast", "snort-fast"),
+        ("squid", "squid"),
+        ("iis", "iis"),
+        ("eventlog", "eventlog"),
+        ("eventchannel", "eventchannel"),
+        ("mysql_log", "mysql_log"),
+        ("postgresql_log", "postgresql_log"),
+        ("nmapg", "nmapg"),
+        ("apache", "apache"),
+        ("command", "command"),
+        ("full_command", "full_command"),
+        ("djb-multilog", "djb-multilog"),
+        ("multi-line", "multi-line"),
+    )
     ossec = models.ForeignKey(OssecAgent)
+    sid = models.IntegerField(unique=True, editable=False, null=False, default=increment_sid)
     argument = models.CharField(max_length=255, choices=TYPE_ARGUMENTS)
+    log_format = models.CharField(max_length=255, choices=LOG_FORMAT)
     option = models.CharField(max_length=400)
 
     def __str__(self):
@@ -439,23 +467,49 @@ class Util(models.Model):
             return None
         return object
 
-    def util(self):
-        arguments = ["addfile", "addsite", "adddns"]
-        if self.argument in arguments:
-            if self.ossec.server.os.name == 'debian':
-                command = self.ossec.server.configuration.conf_binary_dir + "/util.sh " + self.argument + " " + self.option
-            else:
-                raise Exception("Not yet implemented")
-        else:
-            raise Exception("Not yet implemented")
-        if not self.ossec.agent:
-            tasks = {"util": command}
-        else:
-            raise Exception("Not yet implemented")
-        try:
-            response = execute(self.ossec.server, tasks, become=True)
-        except Exception as e:
-            logger.error(e.__str__())
-            return False
-        logger.debug("output : " + str(response))
-        return True
+    def create(self):
+        template_addfile = Template("""<ossec_config>
+    <localfile>
+      <log_format>{{ log_format }}</log_format>
+      <location>{{ path_log }}</location>
+    </localfile>
+</ossec_config>""")
+        template_adddns_conf = Template("""<ossec_config>
+    <localfile>
+      <log_format>full_command</log_format>
+      <command>host -W 5 -t NS {{ domain }}; host -W 5 -t A {{ domain }} | sort</command>
+    </localfile>
+</ossec_config>""")
+        template_adddns_rule = Template("""<group name="local,dnschanges,">
+    <rule id="{{ id }}" level="0">
+      <if_sid>530</if_sid>
+      <check_diff />
+      <match>^ossec: output: 'host -W 5 -t NS {{ domain }}</match>
+      <description>DNS Changed for {{ domain }}</description>
+    </rule>
+</group>""")
+        template_addsite_conf = Template("""<ossec_config>
+    <localfile>
+      <log_format>full_command</log_format>
+      <command>lynx --connect_timeout 10 --dump {{ site }} | head -n 10</command>
+    </localfile>
+</ossec_config>""")
+        template_addsite_rule = Template("""<group name="local,sitechange,">
+    <rule id="{{ id }}" level="0">
+      <if_sid>530</if_sid>
+      <check_diff />
+      <match>^ossec: output: 'lynx --connect_timeout 10 --dump {{ site }}</match>
+      <description>DNS Changed for {{ site }}</description>
+    </rule>
+</group>""")
+        if self.argument is 'addfile':
+            final_addfile_conf = template_addfile.render(log_format=self.log_format, path_log=self.option)
+            return final_addfile_conf
+        elif self.argument is 'adddns':
+            final_adddns_conf = template_adddns_conf.render(domain=self.argument)
+            final_adddns_rule = template_adddns_rule.render(domain=self.argument, id=self.sid)
+            return final_adddns_conf, final_adddns_rule
+        elif self.argument is 'addfile':
+            final_addsite_conf = template_addsite_conf.render(site=self.argument)
+            final_addsite_rule = template_addsite_rule.render(site=self.argument, id=self.sid)
+            return final_addsite_conf, final_addsite_rule
