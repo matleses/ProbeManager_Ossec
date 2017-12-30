@@ -468,6 +468,7 @@ class RuleUtility(models.Model):
         return object
 
     def create(self):
+        # Problem Rule not assigned directly to a ossec agent, it's via ruleset
         template_addfile = Template("""<ossec_config>
     <localfile>
       <log_format>{{ log_format }}</log_format>
