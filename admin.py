@@ -1,22 +1,35 @@
 from django.contrib import admin
-from ossec.models import Ossec, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent, ConfOssecServer, Util
+from ossec.models import OssecAgent, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent, ConfOssecServer, RuleUtility
 import logging
 
 
 logger = logging.getLogger(__name__)
 
 
-class UtilAdmin(admin.ModelAdmin):
+class RuleUtilityAdmin(admin.ModelAdmin):
+    list_display = ('__str__',)
+    list_display_links = None
+
+    class Media:
+        js = (
+            'ossec/js/mask-log_format.js',
+        )
 
     def save_model(self, request, obj, form, change):
-        obj.util()
+        obj.create()
         super().save_model(request, obj, form, change)
 
+    def get_actions(self, request):
+        actions = super(RuleUtilityAdmin, self).get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
 
-admin.site.register(Ossec)
+
+admin.site.register(OssecAgent)
 admin.site.register(RuleSetOssec)
 admin.site.register(RuleOssec)
 admin.site.register(DecoderOssec)
 admin.site.register(ConfOssecAgent)
 admin.site.register(ConfOssecServer)
-admin.site.register(Util, UtilAdmin)
+admin.site.register(RuleUtility, RuleUtilityAdmin)

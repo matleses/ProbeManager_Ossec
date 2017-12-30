@@ -18,7 +18,6 @@ else
 fi
 destfull="$dest"/ProbeManager/
 
-echo '## Set IP server ##'
 if [ $arg == 'prod' ]; then
     "$destfull"venv/bin/python "$destfull"probemanager/manage.py runscript setup_ip --settings=probemanager.settings.$arg --script-args $destfull
 else

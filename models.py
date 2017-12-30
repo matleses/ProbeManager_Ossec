@@ -412,18 +412,18 @@ class OssecAgent(Ossec):
 
 
 def increment_sid():
-    last_sid = Util.objects.all().order_by('id').last()
+    last_sid = RuleUtility.objects.all().order_by('id').last()
     if not last_sid:
         return 50000000
     else:
         return last_sid.sid + 1
 
 
-class Util(models.Model):
+class RuleUtility(models.Model):
     """
     Execute a command like util.sh of Ossec IDS software.
     """
-    TYPE_ARGUMENTS = (
+    TYPE_ACTION = (
         ("addfile", "addfile"),
         ("addsite", "addsite"),
         ("adddns", "adddns"),
@@ -447,12 +447,12 @@ class Util(models.Model):
     )
     ossec = models.ForeignKey(OssecAgent)
     sid = models.IntegerField(unique=True, editable=False, null=False, default=increment_sid)
-    argument = models.CharField(max_length=255, choices=TYPE_ARGUMENTS)
-    log_format = models.CharField(max_length=255, choices=LOG_FORMAT)
-    option = models.CharField(max_length=400)
+    action = models.CharField(max_length=255, choices=TYPE_ACTION)
+    log_format = models.CharField(max_length=255, choices=LOG_FORMAT, blank=True, null=True)
+    option = models.CharField(max_length=400, verbose_name="Domain/Log path")
 
     def __str__(self):
-        return self.ossec.name + "  " + self.argument + " : " + self.option
+        return self.ossec.name + "  " + self.action + " : " + self.option
 
     @classmethod
     def get_all(cls):
@@ -502,14 +502,25 @@ class Util(models.Model):
       <description>DNS Changed for {{ site }}</description>
     </rule>
 </group>""")
-        if self.argument is 'addfile':
+        if self.action is 'addfile':
             final_addfile_conf = template_addfile.render(log_format=self.log_format, path_log=self.option)
+            self.ossec.configuration.conf_file_text += os.linesep + final_addfile_conf + os.linesep
+            self.save()
             return final_addfile_conf
-        elif self.argument is 'adddns':
-            final_adddns_conf = template_adddns_conf.render(domain=self.argument)
-            final_adddns_rule = template_adddns_rule.render(domain=self.argument, id=self.sid)
+        elif self.action is 'adddns':
+            final_adddns_conf = template_adddns_conf.render(domain=self.option)
+            final_adddns_rule = template_adddns_rule.render(domain=self.option, id=self.sid)
+            self.ossec.configuration.conf_file_text += os.linesep + final_adddns_conf + os.linesep
+            self.save()
+            rule = RuleOssec(rev=1, reference="Rule utility, adddns", rule_full=final_adddns_rule, created_date=timezone.now())
+            rule.save()
             return final_adddns_conf, final_adddns_rule
-        elif self.argument is 'addfile':
-            final_addsite_conf = template_addsite_conf.render(site=self.argument)
-            final_addsite_rule = template_addsite_rule.render(site=self.argument, id=self.sid)
+        elif self.action is 'addsite':
+            final_addsite_conf = template_addsite_conf.render(site=self.option)
+            final_addsite_rule = template_addsite_rule.render(site=self.option, id=self.sid)
+            self.ossec.configuration.conf_file_text += os.linesep + final_addsite_conf + os.linesep
+            self.save()
+            rule = RuleOssec(rev=1, reference="Rule utility, addsite", rule_full=final_addsite_rule, created_date=timezone.now())
+            rule.save()
+
             return final_addsite_conf, final_addsite_rule
