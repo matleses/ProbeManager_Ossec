@@ -141,7 +141,8 @@ class Ossec(Probe):
 
     def __init__(self, *args, **kwargs):
         super(Probe, self).__init__(*args, **kwargs)
-        self.type = self.__class__.__name__
+        self.type = 'Ossec'
+        self.subtype = self.__class__.__name__
 
     def __str__(self):
         return self.name + "  " + self.description
