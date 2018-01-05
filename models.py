@@ -170,9 +170,9 @@ class Ossec(Probe):
             response = execute(self.server, tasks, become=True)
         except Exception as e:
             logger.error(e.__str__())
-            return False
+            return {'status': False, 'errors': e.__str__()}
         logger.debug("output : " + str(response))
-        return True
+        return {'status': True}
 
     def start(self):
         if self.server.os.name == 'debian':
@@ -184,9 +184,9 @@ class Ossec(Probe):
             response = execute(self.server, tasks, become=True)
         except Exception as e:
             logger.error(e.__str__())
-            return False
+            return {'status': False, 'errors': e.__str__()}
         logger.debug("output : " + str(response))
-        return True
+        return {'status': True}
 
     def stop(self):
         if self.server.os.name == 'debian':
@@ -198,9 +198,9 @@ class Ossec(Probe):
             response = execute(self.server, tasks, become=True)
         except Exception as e:
             logger.error(e.__str__())
-            return False
+            return {'status': False, 'errors': e.__str__()}
         logger.debug("output : " + str(response))
-        return True
+        return {'status': True}
 
     def reload(self):
         if self.server.os.name == 'debian':
@@ -212,9 +212,9 @@ class Ossec(Probe):
             response = execute(self.server, tasks, become=True)
         except Exception as e:
             logger.error(e.__str__())
-            return False
+            return {'status': False, 'errors': e.__str__()}
         logger.debug("output : " + str(response))
-        return True
+        return {'status': True}
 
     def status(self):
         if self.server.os.name == 'debian':
@@ -231,6 +231,7 @@ class Ossec(Probe):
         return response['status']
 
     def deploy_conf(self):
+        errors = list()
         tmpdir = settings.BASE_DIR + "/tmp/" + self.name + "/"
         if not os.path.exists(tmpdir):
             os.makedirs(tmpdir)
@@ -249,9 +250,13 @@ class Ossec(Probe):
         except Exception as e:
             logger.error(e)
             deploy = False
+            errors.append(e.__str__())
         if os.path.isfile(tmpdir + 'temp.conf'):
             os.remove(tmpdir + "temp.conf")
-        return deploy
+        if deploy:
+            return {'status': True}
+        else:
+            return {'status': deploy, 'errors': errors}
 
 
 class OssecServer(Ossec):
