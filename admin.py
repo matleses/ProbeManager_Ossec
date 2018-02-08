@@ -1,7 +1,8 @@
-from django.contrib import admin
-from ossec.models import OssecAgent, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent, ConfOssecServer, RuleUtility
 import logging
 
+from django.contrib import admin
+
+from ossec.models import OssecAgent, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent, ConfOssecServer, RuleUtility
 
 logger = logging.getLogger(__name__)
 

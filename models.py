@@ -1,21 +1,22 @@
-from django.db import models
-from home.ssh import execute, execute_copy
-from home.models import Probe, ProbeConfiguration
-from rules.models import RuleSet, Rule
 import logging
 import os
+
 import select2.fields
 from django.conf import settings
-from django.utils import timezone
+from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 from jinja2 import Template
 
+from home.models import Probe, ProbeConfiguration
+from home.ssh import execute, execute_copy
+from rules.models import RuleSet, Rule
 
 logger = logging.getLogger('ossec')
 
 
 class ConfOssecAgent(ProbeConfiguration):
-    with open(settings.BASE_DIR + "/ossec/ossec-conf-agent.xml") as f:
+    with open(settings.BASE_DIR + "/ossec/ossec-conf-agent.xml", encoding='utf_8') as f:
         CONF_FULL_DEFAULT = f.read()
     conf_file_text = models.TextField(default=CONF_FULL_DEFAULT)
 
@@ -37,7 +38,7 @@ class ConfOssecAgent(ProbeConfiguration):
 
 
 class ConfOssecServer(ProbeConfiguration):
-    with open(settings.BASE_DIR + "/ossec/ossec-conf-server.xml") as f:
+    with open(settings.BASE_DIR + "/ossec/ossec-conf-server.xml", encoding='utf_8') as f:
         CONF_FULL_DEFAULT = f.read()
     conf_install_file = models.CharField(max_length=400, default="/var/ossec/etc/preloaded-vars-server.conf")
     conf_rules_file = models.CharField(max_length=400, default="/var/ossec/rules/local_rules.xml")
@@ -137,7 +138,7 @@ class Ossec(Probe):
     """
     Stores an instance of Ossec agent IDS software.
     """
-    configuration = models.ForeignKey(ConfOssecServer)
+    configuration = models.ForeignKey(ConfOssecServer, on_delete=models.CASCADE)
 
     def __init__(self, *args, **kwargs):
         super(Probe, self).__init__(*args, **kwargs)
@@ -169,8 +170,8 @@ class Ossec(Probe):
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
-            logger.error(e.__str__())
-            return {'status': False, 'errors': e.__str__()}
+            logger.error(str(e))
+            return {'status': False, 'errors': str(e)}
         logger.debug("output : " + str(response))
         return {'status': True}
 
@@ -183,8 +184,8 @@ class Ossec(Probe):
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
-            logger.error(e.__str__())
-            return {'status': False, 'errors': e.__str__()}
+            logger.error(str(e))
+            return {'status': False, 'errors': str(e)}
         logger.debug("output : " + str(response))
         return {'status': True}
 
@@ -197,8 +198,8 @@ class Ossec(Probe):
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
-            logger.error(e.__str__())
-            return {'status': False, 'errors': e.__str__()}
+            logger.error(str(e))
+            return {'status': False, 'errors': str(e)}
         logger.debug("output : " + str(response))
         return {'status': True}
 
@@ -211,8 +212,8 @@ class Ossec(Probe):
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
-            logger.error(e.__str__())
-            return {'status': False, 'errors': e.__str__()}
+            logger.error(str(e))
+            return {'status': False, 'errors': str(e)}
         logger.debug("output : " + str(response))
         return {'status': True}
 
@@ -225,8 +226,8 @@ class Ossec(Probe):
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
-            logger.error('Failed to get status : ' + e.__str__())
-            return 'Failed to get status : ' + e.__str__()
+            logger.error('Failed to get status : ' + str(e))
+            return 'Failed to get status : ' + str(e)
         logger.debug("output : " + str(response))
         return response['status']
 
@@ -236,7 +237,7 @@ class Ossec(Probe):
         if not os.path.exists(tmpdir):
             os.makedirs(tmpdir)
         value = self.configuration.conf_file_text
-        f = open(tmpdir + "temp.conf", 'w')
+        f = open(tmpdir + "temp.conf", 'w', encoding='utf_8')
         f.write(value)
         f.close()
         deploy = True
@@ -250,7 +251,7 @@ class Ossec(Probe):
         except Exception as e:
             logger.error(e)
             deploy = False
-            errors.append(e.__str__())
+            errors.append(str(e))
         if os.path.isfile(tmpdir + 'temp.conf'):
             os.remove(tmpdir + "temp.conf")
         if deploy:
@@ -289,7 +290,7 @@ class OssecServer(Ossec):
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
-            logger.error(e.__str__())
+            logger.error(str(e))
             return False
         logger.debug("output : " + str(response))
         return True
@@ -304,7 +305,7 @@ class OssecServer(Ossec):
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
-            logger.error(e.__str__())
+            logger.error(str(e))
             return False
         logger.debug("output : " + str(response))
         return response
@@ -320,7 +321,7 @@ class OssecServer(Ossec):
             for rule in ruleset.rules.all():
                 if rule.enabled:
                     value += rule.rule_full + os.linesep
-        f = open(tmpdir + "temp.rules", 'w')
+        f = open(tmpdir + "temp.rules", 'w', encoding='utf_8')
         f.write(value)
         f.close()
         # Decoders
@@ -329,7 +330,7 @@ class OssecServer(Ossec):
             for decoder in ruleset.decoders.all():
                 if decoder.enabled:
                     value += decoder.rule_full + os.linesep
-        f = open(tmpdir + "temp.decoders", 'w')
+        f = open(tmpdir + "temp.decoders", 'w', encoding='utf_8')
         f.write(value)
         f.close()
         # write files
@@ -363,6 +364,7 @@ class OssecAgent(Ossec):
     """
     Stores an instance of Ossec agent IDS software.
     """
+
     @classmethod
     def get_all(cls):
         return cls.objects.all()
@@ -387,7 +389,7 @@ class OssecAgent(Ossec):
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
-            logger.error(e.__str__())
+            logger.error(str(e))
             return False
         logger.debug("output : " + str(response))
         return True
@@ -397,14 +399,16 @@ class OssecAgent(Ossec):
         if self.server.os.name == 'debian':
             command1 = "wget https://github.com/ossec/ossec-hids/archive/" + version + ".tar.gz"
             command2 = "tar xf " + version + ".tar.gz"
-            command3 = "cp probemanager/ossec/preloaded-vars-agent.conf ossec-hids-" + version + "/etc/preloaded-vars.conf && chmod +x ossec-hids-" + version + "/etc/preloaded-vars.conf"
+            command3 = "cp probemanager/ossec/preloaded-vars-agent.conf ossec-hids-" + version + \
+                       "/etc/preloaded-vars.conf && chmod +x ossec-hids-" + version + "/etc/preloaded-vars.conf"
             command4 = "(cd ossec-hids-" + version + "/ && sudo ./install.sh)"
             command5 = "rm " + version + ".tar.gz && rm -rf ossec-hids-" + version
             command6 = "sudo cp probemanager/ossec/ossec-conf-agent.xml /var/ossec/etc/ossec.conf"
             command7 = settings.OSSEC_BINARY + "/agent-auth -m " + settings.OSSEC_SERVER_IP
         else:
             raise Exception("Not yet implemented")
-        tasks = {"wget": command1, "tar": command2, "cp install conf": command3, "install": command4, "clean": command5, "cp conf": command6, "record to server": command7}
+        tasks = {"wget": command1, "tar": command2, "cp install conf": command3, "install": command4, "clean": command5,
+                 "cp conf": command6, "record to server": command7}
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
@@ -451,7 +455,7 @@ class RuleUtility(models.Model):
         ("djb-multilog", "djb-multilog"),
         ("multi-line", "multi-line"),
     )
-    ossec = models.ForeignKey(OssecAgent)
+    ossec = models.ForeignKey(OssecAgent, on_delete=models.CASCADE)
     sid = models.IntegerField(unique=True, editable=False, null=False, default=increment_sid)
     action = models.CharField(max_length=255, choices=TYPE_ACTION)
     log_format = models.CharField(max_length=255, choices=LOG_FORMAT, blank=True, null=True)
@@ -519,7 +523,8 @@ class RuleUtility(models.Model):
             final_adddns_rule = template_adddns_rule.render(domain=self.option, id=self.sid)
             self.ossec.configuration.conf_file_text += os.linesep + final_adddns_conf + os.linesep
             self.save()
-            rule = RuleOssec(rev=1, reference="Rule utility, adddns", rule_full=final_adddns_rule, created_date=timezone.now())
+            rule = RuleOssec(rev=1, reference="Rule utility, adddns", rule_full=final_adddns_rule,
+                             created_date=timezone.now())
             rule.save()
             return final_adddns_conf, final_adddns_rule
         elif self.action is 'addsite':
@@ -527,7 +532,8 @@ class RuleUtility(models.Model):
             final_addsite_rule = template_addsite_rule.render(site=self.option, id=self.sid)
             self.ossec.configuration.conf_file_text += os.linesep + final_addsite_conf + os.linesep
             self.save()
-            rule = RuleOssec(rev=1, reference="Rule utility, addsite", rule_full=final_addsite_rule, created_date=timezone.now())
+            rule = RuleOssec(rev=1, reference="Rule utility, addsite", rule_full=final_addsite_rule,
+                             created_date=timezone.now())
             rule.save()
 
             return final_addsite_conf, final_addsite_rule

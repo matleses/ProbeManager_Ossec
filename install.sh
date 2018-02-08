@@ -19,9 +19,9 @@ fi
 destfull="$dest"/ProbeManager/
 
 if [ $arg == 'prod' ]; then
-    "$destfull"venv/bin/python "$destfull"probemanager/manage.py runscript setup_ip --settings=probemanager.settings.$arg --script-args $destfull
+    "$destfull"venv/bin/python "$destfull"probemanager/manage.py runscript setup_server --settings=probemanager.settings.$arg --script-args $destfull
 else
-    venv/bin/python probemanager/manage.py runscript setup_ip --settings=probemanager.settings.$arg --script-args $destfull
+    venv/bin/python probemanager/manage.py runscript setup_server --settings=probemanager.settings.$arg --script-args $destfull
 fi
 
 VERSION="2.9.3"

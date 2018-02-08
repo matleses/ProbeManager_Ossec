@@ -1,6 +1,6 @@
 from django.conf.urls import url
-from home.views import probe_index, start, stop, restart, reload, status, install, update, deploy_conf, deploy_rules
 
+from home.views import probe_index, start, stop, restart, reload, status, install, update, deploy_conf, deploy_rules
 
 app_name = 'ossec'
 
