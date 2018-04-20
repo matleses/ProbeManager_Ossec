@@ -4,7 +4,7 @@ from django.conf import settings
 from django_celery_beat.models import CrontabSchedule
 from jinja2 import Template
 
-from home.models import Server, SshKey, OsSupported
+from core.models import Server, SshKey, OsSupported
 from ossec.models import OssecServer, ConfOssecServer
 
 

@@ -1,39 +1,26 @@
 #!/usr/bin/env bash
 
 echo '## Install Ossec ##'
+# Install on ProbeManager server
 # Get args
-if [ -z $1 ] || [ $1 == 'dev' ]; then
-    arg="dev"
-    dest=""
-elif [ $1 == 'prod' ]; then
-    arg=$1
-    if [ -z $2 ]; then
-        dest='/usr/local/share'
-    else
-        dest=$2
-    fi
-else
-    echo 'Bad argument'
-    exit 1
-fi
-destfull="$dest"/ProbeManager/
+arg=$1
+destfull=$2
 
-if [ $arg == 'prod' ]; then
-    "$destfull"venv/bin/python "$destfull"probemanager/manage.py runscript setup_server --settings=probemanager.settings.$arg --script-args $destfull
-else
-    venv/bin/python probemanager/manage.py runscript setup_server --settings=probemanager.settings.$arg --script-args $destfull
+if [[ "$OSSEC_VERSION" == "" ]]; then
+    OSSEC_VERSION="2.9.3"
 fi
-
-VERSION="2.9.3"
+config="/var/ossec/etc/ossec.conf"
+rules="/var/ossec/rules/"
+binary="/var/ossec/bin/"
 
 install(){
     if ! [ -d /var/ossec ]; then
-        wget https://github.com/ossec/ossec-hids/archive/"$VERSION".tar.gz
-        tar xf "$VERSION".tar.gz
-        cp probemanager/ossec/preloaded-vars-server.conf ossec-hids-"$VERSION"/etc/preloaded-vars.conf
-        chmod +x ossec-hids-"$VERSION"/etc/preloaded-vars.conf
-        (cd ossec-hids-"$VERSION"/ && sudo ./install.sh)
-        rm "$VERSION".tar.gz && rm -rf ossec-hids-"$VERSION"
+        wget https://github.com/ossec/ossec-hids/archive/"$OSSEC_VERSION".tar.gz
+        tar xf "$OSSEC_VERSION".tar.gz
+        cp probemanager/ossec/preloaded-vars-server.conf ossec-hids-"$OSSEC_VERSION"/etc/preloaded-vars.conf
+        chmod +x ossec-hids-"$OSSEC_VERSION"/etc/preloaded-vars.conf
+        (cd ossec-hids-"$OSSEC_VERSION"/ && sudo ./install.sh)
+        rm "$OSSEC_VERSION".tar.gz && rm -rf ossec-hids-"$OSSEC_VERSION"
         sudo cp probemanager/ossec/ossec-conf-server.xml /var/ossec/etc/ossec.conf
     fi
 }
@@ -62,13 +49,19 @@ if [ -f /etc/debian_version ]; then
 fi
 
 if [ $arg == 'prod' ]; then
-    echo "OSSEC_BINARY = '/var/ossec/bin'" > "$dest"probemanager/ossec/settings.py
-    echo "OSSEC_CONFIG = '/var/ossec/etc/ossec.conf'" >> "$dest"probemanager/ossec/settings.py
-    echo "OSSEC_VERSION = '$VERSION'" >> "$dest"probemanager/ossec/settings.py
+    echo "OSSEC_BINARY = '$binary'" > "$destfull"probemanager/ossec/settings.py
+    echo "OSSEC_CONFIG = '$config'" >> "$destfull"probemanager/ossec/settings.py
+    echo "OSSEC_RULES = '$rules'" >> "$destfull"probemanager/ossec/settings.py
+    echo "OSSEC_VERSION = '$OSSEC_VERSION'" >> "$destfull"probemanager/ossec/settings.py
 else
-    echo "OSSEC_BINARY = '/var/ossec/bin'" > probemanager/ossec/settings.py
-    echo "OSSEC_CONFIG = '/var/ossec/etc/ossec.conf'" >> probemanager/ossec/settings.py
-    echo "OSSEC_VERSION = '$VERSION'" >> probemanager/ossec/settings.py
+    echo "OSSEC_BINARY = '$binary'" > probemanager/ossec/settings.py
+    echo "OSSEC_CONFIG = '$config'" >> probemanager/ossec/settings.py
+    echo "OSSEC_RULES = '$rules'" >> probemanager/ossec/settings.py
+    echo "OSSEC_VERSION = '$OSSEC_VERSION'" >> probemanager/ossec/settings.py
 fi
 
-
+if [ $arg == 'prod' ]; then
+    python "$destfull"probemanager/manage.py runscript setup_server --settings=probemanager.settings.$arg --script-args $destfull
+else
+    python probemanager/manage.py runscript setup_server --settings=probemanager.settings.$arg --script-args $destfull
+fi

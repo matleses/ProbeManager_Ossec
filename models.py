@@ -6,10 +6,11 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from string import Template as Template_string
 from jinja2 import Template
 
-from home.models import Probe, ProbeConfiguration
-from home.ssh import execute, execute_copy
+from core.models import Probe, ProbeConfiguration
+from core.ssh import execute, execute_copy
 from rules.models import RuleSet, Rule
 
 logger = logging.getLogger('ossec')
@@ -23,19 +24,6 @@ class ConfOssecAgent(ProbeConfiguration):
     def __str__(self):
         return self.name
 
-    @classmethod
-    def get_all(cls):
-        return cls.objects.all()
-
-    @classmethod
-    def get_by_id(cls, id):
-        try:
-            object = cls.objects.get(id=id)
-        except cls.DoesNotExist as e:
-            logger.debug('Tries to access an object that does not exist : ' + str(e))
-            return None
-        return object
-
 
 class ConfOssecServer(ProbeConfiguration):
     with open(settings.BASE_DIR + "/ossec/ossec-conf-server.xml", encoding='utf_8') as f:
@@ -48,54 +36,15 @@ class ConfOssecServer(ProbeConfiguration):
     def __str__(self):
         return self.name
 
-    @classmethod
-    def get_all(cls):
-        return cls.objects.all()
-
-    @classmethod
-    def get_by_id(cls, id):
-        try:
-            object = cls.objects.get(id=id)
-        except cls.DoesNotExist as e:
-            logger.debug('Tries to access an object that does not exist : ' + str(e))
-            return None
-        return object
-
 
 class RuleOssec(Rule):
     def __str__(self):
         return self.id
 
-    @classmethod
-    def get_all(cls):
-        return cls.objects.all()
-
-    @classmethod
-    def get_by_id(cls, id):
-        try:
-            object = cls.objects.get(id=id)
-        except cls.DoesNotExist as e:
-            logger.debug('Tries to access an object that does not exist : ' + str(e))
-            return None
-        return object
-
 
 class DecoderOssec(Rule):
     def __str__(self):
         return self.id
-
-    @classmethod
-    def get_all(cls):
-        return cls.objects.all()
-
-    @classmethod
-    def get_by_id(cls, id):
-        try:
-            object = cls.objects.get(id=id)
-        except cls.DoesNotExist as e:
-            logger.debug('Tries to access an object that does not exist : ' + str(e))
-            return None
-        return object
 
 
 class RuleSetOssec(RuleSet):
@@ -120,19 +69,6 @@ class RuleSetOssec(RuleSet):
     def __str__(self):
         return self.name
 
-    @classmethod
-    def get_all(cls):
-        return cls.objects.all()
-
-    @classmethod
-    def get_by_id(cls, id):
-        try:
-            object = cls.objects.get(id=id)
-        except cls.DoesNotExist as e:
-            logger.debug('Tries to access an object that does not exist : ' + str(e))
-            return None
-        return object
-
 
 class Ossec(Probe):
     """
@@ -148,22 +84,9 @@ class Ossec(Probe):
     def __str__(self):
         return self.name + "  " + self.description
 
-    @classmethod
-    def get_all(cls):
-        return cls.objects.all()
-
-    @classmethod
-    def get_by_id(cls, id):
-        try:
-            object = cls.objects.get(id=id)
-        except cls.DoesNotExist as e:
-            logger.debug('Tries to access an object that does not exist : ' + str(e))
-            return None
-        return object
-
     def restart(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-control restart"
+            command = settings.OSSEC_BINARY + "ossec-control restart"
         else:
             raise Exception("Not yet implemented")
         tasks = {"restart": command}
@@ -177,7 +100,7 @@ class Ossec(Probe):
 
     def start(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-control start"
+            command = settings.OSSEC_BINARY + "ossec-control start"
         else:
             raise Exception("Not yet implemented")
         tasks = {"start": command}
@@ -191,7 +114,7 @@ class Ossec(Probe):
 
     def stop(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-control stop"
+            command = settings.OSSEC_BINARY + "ossec-control stop"
         else:
             raise Exception("Not yet implemented")
         tasks = {"stop": command}
@@ -205,7 +128,7 @@ class Ossec(Probe):
 
     def reload(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-control reload"
+            command = settings.OSSEC_BINARY + "ossec-control reload"
         else:
             raise Exception("Not yet implemented")
         tasks = {"reload": command}
@@ -219,7 +142,7 @@ class Ossec(Probe):
 
     def status(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/ossec-control status"
+            command = settings.OSSEC_BINARY + "ossec-control status"
         else:
             raise Exception("Not yet implemented")
         tasks = {"status": command}
@@ -266,23 +189,10 @@ class OssecServer(Ossec):
     """
     rulesets = models.ManyToManyField(RuleSetOssec, blank=True)
 
-    @classmethod
-    def get_all(cls):
-        return cls.objects.all()
-
-    @classmethod
-    def get_by_id(cls, id):
-        try:
-            object = cls.objects.get(id=id)
-        except cls.DoesNotExist as e:
-            logger.debug('Tries to access an object that does not exist : ' + str(e))
-            return None
-        return object
-
     def test(self):
         if self.server.os.name == 'debian':
-            command1 = settings.OSSEC_BINARY + "/ossec-monitord -t"
-            command2 = settings.OSSEC_BINARY + "/ossec-remoted -t"
+            command1 = settings.OSSEC_BINARY + "ossec-monitord -t"
+            command2 = settings.OSSEC_BINARY + "ossec-remoted -t"
         else:
             raise Exception("Not yet implemented")
 
@@ -297,7 +207,7 @@ class OssecServer(Ossec):
 
     def list_agents(self):
         if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "/list_agents -a"
+            command = settings.OSSEC_BINARY + "list_agents -a"
         else:
             raise Exception("Not yet implemented")
 
@@ -380,8 +290,8 @@ class OssecAgent(Ossec):
 
     def test(self):
         if self.server.os.name == 'debian':
-            command1 = settings.OSSEC_BINARY + "/ossec-monitord -t"
-            command2 = settings.OSSEC_BINARY + "/ossec-agentd -t"
+            command1 = settings.OSSEC_BINARY + "ossec-monitord -t"
+            command2 = settings.OSSEC_BINARY + "ossec-agentd -t"
 
         else:
             raise Exception("Not yet implemented")
@@ -394,21 +304,31 @@ class OssecAgent(Ossec):
         logger.debug("output : " + str(response))
         return True
 
-    def install(self):
-        version = settings.OSSEC_VERSION
-        if self.server.os.name == 'debian':
-            command1 = "wget https://github.com/ossec/ossec-hids/archive/" + version + ".tar.gz"
-            command2 = "tar xf " + version + ".tar.gz"
-            command3 = "cp probemanager/ossec/preloaded-vars-agent.conf ossec-hids-" + version + \
-                       "/etc/preloaded-vars.conf && chmod +x ossec-hids-" + version + "/etc/preloaded-vars.conf"
-            command4 = "(cd ossec-hids-" + version + "/ && sudo ./install.sh)"
-            command5 = "rm " + version + ".tar.gz && rm -rf ossec-hids-" + version
-            command6 = "sudo cp probemanager/ossec/ossec-conf-agent.xml /var/ossec/etc/ossec.conf"
-            command7 = settings.OSSEC_BINARY + "/agent-auth -m " + settings.OSSEC_SERVER_IP
+    def install(self, version=settings.OSSEC_VERSION):
+        if self.server.os.name == 'debian' or self.server.os.name == 'ubuntu':
+            install_script = """
+            if ! type ${binary_dir}ossec ; then
+                wget https://github.com/ossec/ossec-hids/archive/${version}.tar.gz
+                tar xf ${version}.tar.gz
+                cp probemanager/ossec/preloaded-vars-agent.conf ossec-hids-${version}/etc/preloaded-vars.conf
+                chmod +x ossec-hids-${version}/etc/preloaded-vars.conf
+                (cd ossec-hids-${version}/ && sudo ./install.sh)
+                rm ${version}.tar.gz && rm -rf ossec-hids-" + version
+                cp probemanager/ossec/ossec-conf-agent.xml /var/ossec/etc/ossec.conf
+                ${binary_dir}agent-auth -m  ${ossec_server_ip}
+                exit 0
+            else
+                echo "Already installed"
+                exit 0
+            fi
+            """
+            t = Template_string(install_script)
+            command = "sh -c '" + t.safe_substitute(version=version,
+                                                    binary_dir=settings.OSSEC_BINARY,
+                                                    ossec_server_ip=settings.OSSEC_SERVER_IP) + "'"
         else:
             raise Exception("Not yet implemented")
-        tasks = {"wget": command1, "tar": command2, "cp install conf": command3, "install": command4, "clean": command5,
-                 "cp conf": command6, "record to server": command7}
+        tasks = {"install": command}
         try:
             response = execute(self.server, tasks, become=True)
         except Exception as e:
@@ -417,8 +337,8 @@ class OssecAgent(Ossec):
         logger.debug("output : " + str(response))
         return True
 
-    def update(self):
-        return self.install()
+    def update(self, version=settings.OSSEC_VERSION):
+        return self.install(version=version)
 
 
 def increment_sid():
