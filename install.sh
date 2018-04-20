@@ -60,8 +60,8 @@ else
     echo "OSSEC_VERSION = '$OSSEC_VERSION'" >> probemanager/ossec/settings.py
 fi
 
-if [ $arg == 'prod' ]; then
-    python "$destfull"probemanager/manage.py runscript setup_server --settings=probemanager.settings.$arg --script-args $destfull
-else
-    python probemanager/manage.py runscript setup_server --settings=probemanager.settings.$arg --script-args $destfull
-fi
+#if [ $arg == 'prod' ]; then
+    #python "$destfull"probemanager/manage.py runscript setup_server --settings=probemanager.settings.$arg --script-args $destfull
+#else
+    #python probemanager/manage.py runscript setup_server --settings=probemanager.settings.$arg --script-args $destfull
+#fi
