@@ -9,6 +9,7 @@ from django.utils import timezone
 from string import Template as Template_string
 from jinja2 import Template
 
+from core.utils import process_cmd
 from core.models import Probe, ProbeConfiguration
 from core.ssh import execute, execute_copy
 from rules.models import RuleSet, Rule
@@ -32,9 +33,15 @@ class ConfOssecServer(ProbeConfiguration):
     conf_rules_file = models.CharField(max_length=400, default="/var/ossec/rules/local_rules.xml")
     conf_decoders_file = models.CharField(max_length=400, default='/var/ossec/etc/local_decoder.xml')
     conf_file_text = models.TextField(default=CONF_FULL_DEFAULT)
+    external_ip = models.GenericIPAddressField(default="192.168.1.1")
 
     def __str__(self):
         return self.name
+
+    def test(self):
+        with self.get_tmp_dir(self.pk) as tmp_dir:
+            cmd = [settings.OSSEC_BINARY + "ossec-remoted", "-t"]
+            return process_cmd(cmd, tmp_dir)
 
 
 class RuleOssec(Rule):
