@@ -55,6 +55,11 @@ class DecoderOssec(Rule):
         return self.id
 
 
+class ConfOssec(Rule):
+    def __str__(self):
+        return self.id
+
+
 class RuleSetOssec(RuleSet):
     """
     Set of rules and decoders Ossec compatible
@@ -73,6 +78,13 @@ class RuleSetOssec(RuleSet):
                                               sort_field='sid',
                                               js_options={'quiet_millis': 200}
                                               )
+    confs = select2.fields.ManyToManyField(ConfOssec,
+                                              blank=True,
+                                              ajax=True,
+                                              search_field=lambda q: Q(id__icontains=q) | Q(rule_full__icontains=q),
+                                              sort_field='sid',
+                                              js_options={'quiet_millis': 200}
+                                              )
 
     def __str__(self):
         return self.name
@@ -80,7 +92,7 @@ class RuleSetOssec(RuleSet):
 
 class Ossec(Probe):
     """
-    Stores an instance of Ossec agent IDS software.
+    Stores an instance of Ossec IDS software.
     """
     configuration = models.ForeignKey(ConfOssecServer, on_delete=models.CASCADE)
 
@@ -420,14 +432,14 @@ class RuleUtility(models.Model):
         ("djb-multilog", "djb-multilog"),
         ("multi-line", "multi-line"),
     )
-    ossec = models.ForeignKey(OssecAgent, on_delete=models.CASCADE)
+    rulesets = models.ManyToManyField(RuleSetOssec, blank=True)
     sid = models.IntegerField(unique=True, editable=False, null=False, default=increment_sid)
     action = models.CharField(max_length=255, choices=TYPE_ACTION)
     log_format = models.CharField(max_length=255, choices=LOG_FORMAT, blank=True, null=True)
     option = models.CharField(max_length=400, verbose_name="Domain/Log path")
 
     def __str__(self):
-        return self.ossec.name + "  " + self.action + " : " + self.option
+        return str(self.sid) + "  " + str(self.action) + " : " + str(self.option)
 
     @classmethod
     def get_all(cls):
@@ -443,7 +455,6 @@ class RuleUtility(models.Model):
         return object
 
     def create(self):
-        # Problem Rule not assigned directly to a ossec agent, it's via ruleset
         template_addfile = Template("""<ossec_config>
     <localfile>
       <log_format>{{ log_format }}</log_format>
@@ -480,25 +491,32 @@ class RuleUtility(models.Model):
 </group>""")
         if self.action is 'addfile':
             final_addfile_conf = template_addfile.render(log_format=self.log_format, path_log=self.option)
-            self.ossec.configuration.conf_file_text += os.linesep + final_addfile_conf + os.linesep
-            self.save()
-            return final_addfile_conf
+            conf = ConfOssec(rev=1, reference="Rule utility, addfile", rule_full=final_addfile_conf,
+                             created_date=timezone.now())
+            conf.save()
+            for ruleset in self.rulesets.all():
+                ruleset.confs.add(conf)
         elif self.action is 'adddns':
             final_adddns_conf = template_adddns_conf.render(domain=self.option)
             final_adddns_rule = template_adddns_rule.render(domain=self.option, id=self.sid)
-            self.ossec.configuration.conf_file_text += os.linesep + final_adddns_conf + os.linesep
-            self.save()
+            conf = ConfOssec(rev=1, reference="Rule utility, adddns", rule_full=final_adddns_conf,
+                             created_date=timezone.now())
+            conf.save()
             rule = RuleOssec(rev=1, reference="Rule utility, adddns", rule_full=final_adddns_rule,
                              created_date=timezone.now())
             rule.save()
-            return final_adddns_conf, final_adddns_rule
+            for ruleset in self.rulesets.all():
+                ruleset.confs.add(conf)
+                ruleset.rules.add(rule)
         elif self.action is 'addsite':
             final_addsite_conf = template_addsite_conf.render(site=self.option)
             final_addsite_rule = template_addsite_rule.render(site=self.option, id=self.sid)
-            self.ossec.configuration.conf_file_text += os.linesep + final_addsite_conf + os.linesep
-            self.save()
+            conf = ConfOssec(rev=1, reference="Rule utility, addsite", rule_full=final_addsite_conf,
+                             created_date=timezone.now())
+            conf.save()
             rule = RuleOssec(rev=1, reference="Rule utility, addsite", rule_full=final_addsite_rule,
                              created_date=timezone.now())
             rule.save()
-
-            return final_addsite_conf, final_addsite_rule
+            for ruleset in self.rulesets.all():
+                ruleset.confs.add(conf)
+                ruleset.rules.add(rule)

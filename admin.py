@@ -1,6 +1,8 @@
 import logging
 
 from django.contrib import admin, messages
+from django.conf import settings
+from jinja2 import Template
 from core.models import Server, SshKey, OsSupported
 from django_celery_beat.models import CrontabSchedule
 from.forms import ConfOssecServerSetForm
@@ -9,6 +11,21 @@ from ossec.models import OssecAgent, OssecServer, RuleOssec, RuleSetOssec, Decod
 
 logger = logging.getLogger(__name__)
 
+
+class ConfOssecAgentAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        if len(OssecServer.get_all()) == 0:
+            return False
+        else:
+            return True
+
+
+class OssecAgentAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        if len(OssecServer.get_all()) == 0:
+            return False
+        else:
+            return True
 
 class ConfOssecServerAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
@@ -38,21 +55,40 @@ class ConfOssecServerAdmin(admin.ModelAdmin):
             messages.add_message(request, messages.SUCCESS, "Test configuration OK")
         else:
             messages.add_message(request, messages.ERROR, "Test configuration failed ! " + str(response['errors']))
-        sshkey = SshKey(name="Ossec-Server")
+        # generate a ssh key
+        sshkey = SshKey(name="Ossec-Server-SSH")
         sshkey.save()
-        server = Server(name="main-server-localhost",
+        # port ssh -> grep 'Port ' /etc/ssh/sshd_config
+        server = Server(name="main-ossec-server",
                         host="127.0.0.1",
+                        remote_user="ossec",
+                        remote_port="",
                         os=OsSupported.get_by_id(1),
-                        become=False,
+                        become=True,
+                        become_pass="",
                         ssh_private_key_file=sshkey
                         )
         server.save()
-        ossec_server = OssecServer(name="main-server", configuration=obj, secure_deployment=True,
+        ossec_server = OssecServer(name="ossec-server", configuration=obj, secure_deployment=True,
                                    installed=True,
                                    scheduled_check_enabled=True,
                                    scheduled_check_crontab=CrontabSchedule.objects.get(id=2),
                                    server=server)
         ossec_server.save()
+        ip = obj.external_ip
+        with open(settings.BASE_DIR + "/ossec/ossec-conf-agent.xml") as f:
+            conf_full_default = f.read()
+        t = Template(conf_full_default)
+        final_conf_default = t.render(ip=ip)
+        with open(settings.BASE_DIR + "/ossec/ossec-conf-agent.xml", 'w') as f:
+            f.write(final_conf_default)
+
+        with open(settings.BASE_DIR + "/ossec/preloaded-vars-agent.conf") as f:
+            conf_install = f.read()
+        t = Template(conf_install)
+        final_conf_install = t.render(ip=ip)
+        with open(settings.BASE_DIR + "/ossec/preloaded-vars-agent.conf", 'w') as f:
+            f.write(final_conf_install)
         messages.add_message(request, messages.SUCCESS, "Server Ossec added successfully !")
 
 
@@ -77,9 +113,9 @@ class RuleUtilityAdmin(admin.ModelAdmin):
 
 
 admin.site.register(ConfOssecServer, ConfOssecServerAdmin)
-admin.site.register(OssecAgent)
+admin.site.register(OssecAgent, OssecAgentAdmin)
 admin.site.register(RuleSetOssec)
 admin.site.register(RuleOssec)
 admin.site.register(DecoderOssec)
-admin.site.register(ConfOssecAgent)
+admin.site.register(ConfOssecAgent, ConfOssecAgentAdmin)
 admin.site.register(RuleUtility, RuleUtilityAdmin)
