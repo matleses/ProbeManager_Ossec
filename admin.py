@@ -43,6 +43,7 @@ class ConfOssecServerAdmin(admin.ModelAdmin):
         server = Server(name="main-server-localhost",
                         host="127.0.0.1",
                         os=OsSupported.get_by_id(1),
+                        become=False,
                         ssh_private_key_file=sshkey
                         )
         server.save()

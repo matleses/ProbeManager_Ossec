@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 
 import select2.fields
 from django.conf import settings
@@ -95,7 +96,7 @@ class Ossec(Probe):
         if self.server.os.name == 'debian':
             command = settings.OSSEC_BINARY + "ossec-control restart"
         else:
-            raise Exception("Not yet implemented")
+            raise NotImplementedError
         tasks = {"restart": command}
         try:
             response = execute(self.server, tasks, become=True)
@@ -109,7 +110,7 @@ class Ossec(Probe):
         if self.server.os.name == 'debian':
             command = settings.OSSEC_BINARY + "ossec-control start"
         else:
-            raise Exception("Not yet implemented")
+            raise NotImplementedError
         tasks = {"start": command}
         try:
             response = execute(self.server, tasks, become=True)
@@ -123,7 +124,7 @@ class Ossec(Probe):
         if self.server.os.name == 'debian':
             command = settings.OSSEC_BINARY + "ossec-control stop"
         else:
-            raise Exception("Not yet implemented")
+            raise NotImplementedError
         tasks = {"stop": command}
         try:
             response = execute(self.server, tasks, become=True)
@@ -137,7 +138,7 @@ class Ossec(Probe):
         if self.server.os.name == 'debian':
             command = settings.OSSEC_BINARY + "ossec-control reload"
         else:
-            raise Exception("Not yet implemented")
+            raise NotImplementedError
         tasks = {"reload": command}
         try:
             response = execute(self.server, tasks, become=True)
@@ -151,7 +152,7 @@ class Ossec(Probe):
         if self.server.os.name == 'debian':
             command = settings.OSSEC_BINARY + "ossec-control status"
         else:
-            raise Exception("Not yet implemented")
+            raise NotImplementedError
         tasks = {"status": command}
         try:
             response = execute(self.server, tasks, become=True)
@@ -197,35 +198,72 @@ class OssecServer(Ossec):
     rulesets = models.ManyToManyField(RuleSetOssec, blank=True)
 
     def test(self):
-        if self.server.os.name == 'debian':
-            command1 = settings.OSSEC_BINARY + "ossec-monitord -t"
-            command2 = settings.OSSEC_BINARY + "ossec-remoted -t"
+        if self.server.os.name == 'debian' or self.server.os.name == 'ubuntu':
+            with self.get_tmp_dir(self.pk) as tmp_dir:
+                cmd1 = [settings.OSSEC_BINARY + "ossec-montord", "-t"]
+                cmd2 = [settings.OSSEC_BINARY + "ossec-remoted", "-t"]
+                response1 = process_cmd(cmd1, tmp_dir)
+                response2 = process_cmd(cmd2, tmp_dir)
+                if response1['status'] and response2['status']:
+                    return True
+                else:
+                    return False
         else:
-            raise Exception("Not yet implemented")
+            raise NotImplementedError
 
-        tasks = {"test monitord": command1, "test remoted": command2}
+    def status(self):
+        if self.server.os.name == 'debian' or self.server.os.name == 'ubuntu':
+            with self.get_tmp_dir(self.pk) as tmp_dir:
+                cmd = [settings.OSSEC_BINARY + "ossec-control", "status"]
+                return process_cmd(cmd, tmp_dir)
+        else:
+            raise NotImplementedError
+
+    def uptime(self):
+        if self.server.os.name == 'debian' or self.server.os.name == 'ubuntu':
+            return ""
+        else:
+            raise NotImplementedError
+
+    def install(self, version=settings.OSSEC_VERSION):
+        if self.server.os.name == 'debian' or self.server.os.name == 'ubuntu':
+            install_script = """
+            if [[ ! -d /var/ossec/bin/ ]] ; then
+                wget https://github.com/ossec/ossec-hids/archive/${version}.tar.gz
+                tar xf ${version}.tar.gz
+                cp probemanager/ossec/preloaded-vars-server.conf ossec-hids-${version}/etc/preloaded-vars.conf
+                chmod +x ossec-hids-${version}/etc/preloaded-vars.conf
+                (cd ossec-hids-${version}/ && sudo ./install.sh)
+                rm ${version}.tar.gz && rm -rf ossec-hids-${version}
+                sudo cp probemanager/ossec/ossec-conf-server.xml /var/ossec/etc/ossec.conf
+                sudo chown -R $(whoami) /var/ossec/
+                sudo chown $(whoami) /etc/ossec-init.conf
+            else
+                echo "Already installed"
+                exit 0
+            fi
+            """
+        else:
+            raise NotImplementedError
+        t = Template(install_script)
         try:
-            response = execute(self.server, tasks, become=True)
+            with self.get_tmp_dir(self.pk) as tmp_dir:
+                cmd = ["sh", "-c", "'" + t.substitute(version=version) + "'"]
+                return process_cmd(cmd, tmp_dir)
         except Exception as e:
-            logger.error(str(e))
-            return False
-        logger.debug("output : " + str(response))
-        return True
+            logger.exception('install failed')
+            return {'status': False, 'errors': str(e)}
+
+    def update(self, version=settings.OSSEC_VERSION):
+        return self.install(version=version)
 
     def list_agents(self):
-        if self.server.os.name == 'debian':
-            command = settings.OSSEC_BINARY + "list_agents -a"
+        if self.server.os.name == 'debian' or self.server.os.name == 'ubuntu':
+            with self.get_tmp_dir(self.pk) as tmp_dir:
+                cmd = ["sudo", settings.OSSEC_BINARY, "list_agents", "-a"]
+                return process_cmd(cmd, tmp_dir)
         else:
-            raise Exception("Not yet implemented")
-
-        tasks = {"list agents": command}
-        try:
-            response = execute(self.server, tasks, become=True)
-        except Exception as e:
-            logger.error(str(e))
-            return False
-        logger.debug("output : " + str(response))
-        return response
+            raise NotImplementedError
 
     def deploy_rules(self):
         deploy = True
@@ -301,7 +339,7 @@ class OssecAgent(Ossec):
             command2 = settings.OSSEC_BINARY + "ossec-agentd -t"
 
         else:
-            raise Exception("Not yet implemented")
+            raise NotImplementedError
         tasks = {"test monitord": command1, "test remoted": command2}
         try:
             response = execute(self.server, tasks, become=True)
@@ -334,7 +372,7 @@ class OssecAgent(Ossec):
                                                     binary_dir=settings.OSSEC_BINARY,
                                                     ossec_server_ip=settings.OSSEC_SERVER_IP) + "'"
         else:
-            raise Exception("Not yet implemented")
+            raise NotImplementedError
         tasks = {"install": command}
         try:
             response = execute(self.server, tasks, become=True)

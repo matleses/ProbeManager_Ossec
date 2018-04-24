@@ -60,5 +60,6 @@ else
     echo "OSSEC_VERSION = '$OSSEC_VERSION'" >> probemanager/ossec/settings.py
 fi
 sudo chown -R $(whoami) /var/ossec/
+sudo chown $(whoami) /etc/ossec-init.conf
 "$binary"manage_agents -V
 exit 0
