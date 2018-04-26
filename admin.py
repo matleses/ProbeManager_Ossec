@@ -1,12 +1,12 @@
 import logging
-
+import subprocess
 from django.contrib import admin, messages
 from django.conf import settings
 from jinja2 import Template
 from core.models import Server, SshKey, OsSupported
 from django_celery_beat.models import CrontabSchedule
 from.forms import ConfOssecServerSetForm
-from ossec.models import OssecAgent, OssecServer, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent, \
+from ossec.models import OssecAgent, OssecServer, ConfOssec, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent, \
     ConfOssecServer, RuleUtility
 
 logger = logging.getLogger(__name__)
@@ -56,20 +56,27 @@ class ConfOssecServerAdmin(admin.ModelAdmin):
         else:
             messages.add_message(request, messages.ERROR, "Test configuration failed ! " + str(response['errors']))
         # generate a ssh key
-        sshkey = SshKey(name="Ossec-Server-SSH")
+        sshkey = SshKey(name="Ossec-Server-SSH", file="~/.ssh/ossec-server_rsa")
         sshkey.save()
-        # port ssh -> grep 'Port ' /etc/ssh/sshd_config
-        server = Server(name="main-ossec-server",
+        # port ssh -> grep 'Port ' /etc/ssh/sshd_config | cut -f2  -d ' '
+        process = subprocess.Popen('grep "Port " /etc/ssh/sshd_config | cut -f2 -d " "', stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE, universal_newlines=True, shell=True)
+        outdata, errdata = process.communicate()
+        try:
+            port = int(outdata)
+        except TypeError:
+            port = 22
+        server = Server(name="main-Ossec-server",
                         host="127.0.0.1",
-                        remote_user="ossec",
-                        remote_port="",
-                        os=OsSupported.get_by_id(1),
+                        remote_user=settings.OSSEC_REMOTE_USER,
+                        remote_port=port,
+                        os=OsSupported.objects.get(name=settings.OSSEC_REMOTE_OS),
                         become=True,
                         become_pass="",
                         ssh_private_key_file=sshkey
                         )
         server.save()
-        ossec_server = OssecServer(name="ossec-server", configuration=obj, secure_deployment=True,
+        ossec_server = OssecServer(name="Ossec-server", configuration=obj, secure_deployment=True,
                                    installed=True,
                                    scheduled_check_enabled=True,
                                    scheduled_check_crontab=CrontabSchedule.objects.get(id=2),
@@ -116,6 +123,7 @@ admin.site.register(ConfOssecServer, ConfOssecServerAdmin)
 admin.site.register(OssecAgent, OssecAgentAdmin)
 admin.site.register(RuleSetOssec)
 admin.site.register(RuleOssec)
+admin.site.register(ConfOssec)
 admin.site.register(DecoderOssec)
 admin.site.register(ConfOssecAgent, ConfOssecAgentAdmin)
 admin.site.register(RuleUtility, RuleUtilityAdmin)

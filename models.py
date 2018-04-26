@@ -9,8 +9,8 @@ from django.db.models import Q
 from django.utils import timezone
 from string import Template as Template_string
 from jinja2 import Template
-
-from core.utils import process_cmd
+from datetime import datetime
+from core.utils import process_cmd, find_procs_by_name
 from core.models import Probe, ProbeConfiguration
 from core.ssh import execute, execute_copy
 from rules.models import RuleSet, Rule
@@ -174,6 +174,16 @@ class Ossec(Probe):
         logger.debug("output : " + str(response))
         return response['status']
 
+    def uptime(self):
+        if self.server.os.name == 'debian' or self.server.os.name == 'ubuntu':
+            ls = find_procs_by_name("ossec")
+            if ls:
+                return datetime.fromtimestamp(ls[0].create_time()).strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                return ""
+        else:
+            raise NotImplementedError
+
     def deploy_conf(self):
         errors = list()
         tmpdir = settings.BASE_DIR + "/tmp/" + self.name + "/"
@@ -220,20 +230,6 @@ class OssecServer(Ossec):
                     return True
                 else:
                     return False
-        else:
-            raise NotImplementedError
-
-    def status(self):
-        if self.server.os.name == 'debian' or self.server.os.name == 'ubuntu':
-            with self.get_tmp_dir(self.pk) as tmp_dir:
-                cmd = [settings.OSSEC_BINARY + "ossec-control", "status"]
-                return process_cmd(cmd, tmp_dir)
-        else:
-            raise NotImplementedError
-
-    def uptime(self):
-        if self.server.os.name == 'debian' or self.server.os.name == 'ubuntu':
-            return ""
         else:
             raise NotImplementedError
 

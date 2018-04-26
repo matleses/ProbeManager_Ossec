@@ -25,8 +25,14 @@ install(){
     fi
 }
 
+ssh_key(){
+    ssh-keygen -t rsa -b 4096 -C "Ossec server" -f ~/.ssh/ossec-server_rsa -P ""
+    cat ~/.ssh/ossec-server_rsa.pub >> ~/.ssh/authorized_keys
+}
+
 # OSX with source
 if [[ $OSTYPE == *"darwin"* ]]; then
+    os="osx"
     if brew --version | grep -qw Homebrew ; then
         if ! brew list | grep -qw wget ; then
             brew install wget
@@ -39,13 +45,16 @@ if [[ $OSTYPE == *"darwin"* ]]; then
         fi
     fi
     install
+    ssh_key
 fi
 # Debian
 if [ -f /etc/debian_version ]; then
+    os="debian"
     sudo apt update
     sudo apt install build-essential
     sudo apt install lynx
     install
+    ssh_key
 fi
 
 if [ $arg == 'prod' ]; then
@@ -53,13 +62,15 @@ if [ $arg == 'prod' ]; then
     echo "OSSEC_CONFIG = '$config'" >> "$destfull"probemanager/ossec/settings.py
     echo "OSSEC_RULES = '$rules'" >> "$destfull"probemanager/ossec/settings.py
     echo "OSSEC_VERSION = '$OSSEC_VERSION'" >> "$destfull"probemanager/ossec/settings.py
+    echo "OSSEC_REMOTE_USER = '$(whoami)'" >> "$destfull"probemanager/ossec/settings.py
+    echo "OSSEC_REMOTE_OS = '$os'" >> "$destfull"probemanager/ossec/settings.py
 else
     echo "OSSEC_BINARY = '$binary'" > probemanager/ossec/settings.py
     echo "OSSEC_CONFIG = '$config'" >> probemanager/ossec/settings.py
     echo "OSSEC_RULES = '$rules'" >> probemanager/ossec/settings.py
     echo "OSSEC_VERSION = '$OSSEC_VERSION'" >> probemanager/ossec/settings.py
+    echo "OSSEC_REMOTE_USER = '$(whoami)'" >> probemanager/ossec/settings.py
+    echo "OSSEC_REMOTE_OS = '$os'" >> probemanager/ossec/settings.py
 fi
-sudo chown -R $(whoami) /var/ossec/
-sudo chown $(whoami) /etc/ossec-init.conf
-"$binary"manage_agents -V
+sudo "$binary"manage_agents -V
 exit 0
