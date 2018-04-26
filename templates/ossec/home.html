@@ -1,0 +1,32 @@
+<h2>
+    {% load static %}
+    &nbsp;<img src="{% static 'ossec/images/ossec-logo.jpeg' %}" alt="Ossec logo" width="150px">
+</h2>
+{% load check_server %}
+{% if instance|check_server %}
+<button type="button" class="btn btn-secondary" onclick="window.location.href='/admin/ossec/ossecagent/add/'">Add new
+    agent
+</button>
+{% else %}
+<button type="button" class="btn btn-secondary" onclick="window.location.href='/admin/ossec/confossecserver/add/'">Add new
+    server for beginning
+</button>
+{% endif %}
+<br/><br/>
+{% if instances.ossec %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="center-block">
+            <div class="list-group">
+                {% load status %}
+                {% for instance in instances.ossec %}
+                <a class="list-group-item list-group-item-{{ instance.id|status }} list-group-item-action"
+                   href="{% url 'ossec:probe_index' instance.id %}">{{ instance }} - {{ instance.host }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+<br/>
