@@ -1,6 +1,5 @@
 import logging
 import os
-import subprocess
 
 import select2.fields
 from django.conf import settings
@@ -79,12 +78,12 @@ class RuleSetOssec(RuleSet):
                                               js_options={'quiet_millis': 200}
                                               )
     confs = select2.fields.ManyToManyField(ConfOssec,
-                                              blank=True,
-                                              ajax=True,
-                                              search_field=lambda q: Q(id__icontains=q) | Q(rule_full__icontains=q),
-                                              sort_field='sid',
-                                              js_options={'quiet_millis': 200}
-                                              )
+                                           blank=True,
+                                           ajax=True,
+                                           search_field=lambda q: Q(id__icontains=q) | Q(rule_full__icontains=q),
+                                           sort_field='sid',
+                                           js_options={'quiet_millis': 200}
+                                           )
 
     def __str__(self):
         return self.name

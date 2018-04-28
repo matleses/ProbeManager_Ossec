@@ -6,8 +6,8 @@ from jinja2 import Template
 from core.models import Server, SshKey, OsSupported
 from django_celery_beat.models import CrontabSchedule
 from.forms import ConfOssecServerSetForm
-from ossec.models import OssecAgent, OssecServer, ConfOssec, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent, \
-    ConfOssecServer, RuleUtility
+from ossec.models import OssecAgent, OssecServer, ConfOssec, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent
+from ossec.models import ConfOssecServer, RuleUtility
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ class OssecAgentAdmin(admin.ModelAdmin):
             return False
         else:
             return True
+
 
 class ConfOssecServerAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
@@ -60,7 +61,7 @@ class ConfOssecServerAdmin(admin.ModelAdmin):
         sshkey.save()
         # port ssh -> grep 'Port ' /etc/ssh/sshd_config | cut -f2  -d ' '
         process = subprocess.Popen('grep "Port " /etc/ssh/sshd_config | cut -f2 -d " "', stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE, universal_newlines=True, shell=True)
+                                   stderr=subprocess.PIPE, universal_newlines=True, shell=True)
         outdata, errdata = process.communicate()
         try:
             port = int(outdata)
