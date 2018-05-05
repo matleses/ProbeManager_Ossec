@@ -5,9 +5,10 @@ from django.conf import settings
 from jinja2 import Template
 from core.models import Server, SshKey, OsSupported
 from django_celery_beat.models import CrontabSchedule
-from.forms import ConfOssecServerSetForm
-from ossec.models import OssecAgent, OssecServer, ConfOssec, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent
-from ossec.models import ConfOssecServer, RuleUtility
+from .forms import ConfOssecServerSetForm
+from .models import OssecAgent, OssecServer, ConfOssec, RuleOssec, RuleSetOssec, DecoderOssec, ConfOssecAgent, \
+    ConfOssecServer, RuleUtility
+
 
 logger = logging.getLogger(__name__)
 
