@@ -69,4 +69,15 @@ Page to add an Ossec Server Configuration :
 * External IP: The IP address seen by the agents to connect.
 * Conf file text: Give the configuration of the probe.
 
+Page to add a rule via Rules utility :
+--------------------------------------
+
+.. image:: https://raw.githubusercontent.com/treussart/ProbeManager_Ossec/develop/data/admin-rule-utility-add.png
+  :align: center
+  :width: 70%
+
+* Rulesets: Choose the sets of rules that will contain this rule.
+* Action: addfile, addsite, adddns.
+* Log format: (When addfile is selected) syslog, iis, apache ...
+* Domain/Log path: Give the path of the file when addfile and a domain name for addsite and adddns.
 
