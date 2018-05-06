@@ -44,3 +44,10 @@ Installation
 
 Install with `ProbeManager <https://github.com/treussart/ProbeManager/>`_
 
+Usage
+=====
+
+For the first installation, it's necessary to create a configuration for the server (by default in localhost).
+Give the IP address of the server and the general configuration.
+
+After you can add new Ossec agent.
