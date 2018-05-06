@@ -51,3 +51,10 @@ For the first installation, it's necessary to create a configuration for the ser
 Give the IP address of the server and the general configuration.
 
 After you can add new Ossec agent.
+
+Administration Page of the module :
+-----------------------------------
+
+.. image:: https://raw.githubusercontent.com/treussart/ProbeManager_Ossec/develop/data/admin-index.png
+  :align: center
+  :width: 80%
