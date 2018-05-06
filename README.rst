@@ -58,3 +58,15 @@ Administration Page of the module :
 .. image:: https://raw.githubusercontent.com/treussart/ProbeManager_Ossec/develop/data/admin-index.png
   :align: center
   :width: 80%
+
+Page to add an Ossec Server Configuration :
+-------------------------------------------
+
+.. image:: https://raw.githubusercontent.com/treussart/ProbeManager_Ossec/develop/data/admin-conf-server-add.png
+  :align: center
+  :width: 70%
+
+* External IP: The IP address seen by the agents to connect.
+* Conf file text: Give the configuration of the probe.
+
+
