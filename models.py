@@ -1,16 +1,18 @@
 import logging
 import os
+import subprocess
 
 import select2.fields
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from django_celery_beat.models import CrontabSchedule
 from string import Template as Template_string
 from jinja2 import Template
 from datetime import datetime
 from core.utils import process_cmd, find_procs_by_name
-from core.models import Probe, ProbeConfiguration
+from core.models import Probe, ProbeConfiguration, SshKey, Server, OsSupported
 from core.ssh import execute, execute_copy
 from rules.models import RuleSet, Rule
 
@@ -37,6 +39,54 @@ class ConfOssecServer(ProbeConfiguration):
 
     def __str__(self):
         return self.name
+
+    def save(self, **kwargs):
+        if len(ConfOssecServer.get_all()) == 0:
+            self.name = "Ossec-Server"
+            super().save(**kwargs)
+            # generate a ssh key
+            sshkey = SshKey(name="Ossec-Server-SSH", file="~/.ssh/ossec-server_rsa")
+            sshkey.save()
+            # port ssh -> grep 'Port ' /etc/ssh/sshd_config | cut -f2  -d ' '
+            process = subprocess.Popen('grep "Port " /etc/ssh/sshd_config | cut -f2 -d " "', stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE, universal_newlines=True, shell=True)
+            outdata, errdata = process.communicate()
+            try:
+                port = int(outdata)
+            except TypeError:
+                port = 22
+            server = Server(name="main-Ossec-server",
+                            host="127.0.0.1",
+                            remote_user=settings.OSSEC_REMOTE_USER,
+                            remote_port=port,
+                            os=OsSupported.objects.get(name=settings.OSSEC_REMOTE_OS),
+                            become=True,
+                            become_pass="",
+                            ssh_private_key_file=sshkey
+                            )
+            server.save()
+            ossec_server = OssecServer(name="Ossec-server", configuration=self, secure_deployment=True,
+                                       installed=True,
+                                       scheduled_check_enabled=True,
+                                       scheduled_check_crontab=CrontabSchedule.objects.get(id=2),
+                                       server=server)
+            ossec_server.save()
+            ip = self.external_ip
+            with open(settings.BASE_DIR + "/ossec/ossec-conf-agent.xml") as f:
+                conf_full_default = f.read()
+            t = Template(conf_full_default)
+            final_conf_default = t.render(ip=ip)
+            with open(settings.BASE_DIR + "/ossec/ossec-conf-agent.xml", 'w') as f:
+                f.write(final_conf_default)
+
+            with open(settings.BASE_DIR + "/ossec/preloaded-vars-agent.conf") as f:
+                conf_install = f.read()
+            t = Template(conf_install)
+            final_conf_install = t.render(ip=ip)
+            with open(settings.BASE_DIR + "/ossec/preloaded-vars-agent.conf", 'w') as f:
+                f.write(final_conf_install)
+        else:
+            raise Exception("Only one Ossec server allowed")
 
     def test(self):
         with self.get_tmp_dir(self.pk) as tmp_dir:
@@ -435,6 +485,10 @@ class RuleUtility(models.Model):
 
     def __str__(self):
         return str(self.sid) + "  " + str(self.action) + " : " + str(self.option)
+
+    def save(self, **kwargs):
+        self.create()
+        super().save(**kwargs)
 
     @classmethod
     def get_all(cls):
